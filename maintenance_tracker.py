@@ -2,6 +2,7 @@ import sqlite3
 from datetime import datetime, timezone, timedelta
 from enum import Enum, auto
 from typing import Self
+import json
 
 import pytimeparse2
 
@@ -25,44 +26,6 @@ class list_options(Enum):
     OVERDUE = auto()
     SOON_OVERDUE = auto()
     NOT_OVERDUE = auto()
-
-
-class persistance_backend:
-    # TODO: load from a config file?
-    DB_CONFIG = {
-        "FILE_PATH": "./data/maintenance.db",
-        "DB_NAME": "main_db",
-        "TASK_LIST_TABLE": "task_list",
-        "TASK_TABLE": "tasks",
-        "INSTANCE_TABLE": "instances",
-    }
-
-    def __init__(
-        self,
-    ):
-        try:
-            self.con = sqlite3.connect(self.DB_CONFIG["FILE_PATH"])
-        except Exception as e:
-            print(e)
-
-    def _check_or_create_tables(self):
-        with self.con as c:
-            c.execute(
-                f"""
-                    CREATE TABLE IF NOT EXISTS {self.DB_CONFIG["TASK_LIST_TABLE"]} ( 
-                    list_id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-                    list_name TEXT,
-                    );
-                """
-            )
-            c.execute(
-                f"""
-                    CREATE TABLE IF NOT EXISTS {self.DB_CONFIG["TASK_TABLE"]} ( 
-                    task_id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-                    list_id
-                    );
-                """
-            )
 
 
 class TaskWithSameNameError(ValueError):
@@ -99,13 +62,11 @@ class mtn_instance:
 class mtn_task:
     # a task is a repetitive activity we want to track
     name: str
-    mtn_instances: list[mtn_instance] = []  # ordered by datetime ascending
+    mtn_instances: list[mtn_instance]  # ordered by datetime ascending
     interval: timedelta
 
     def __init__(
-        self,
-        name: str,
-        interval: timedelta,
+        self, name: str, interval: timedelta, mtn_instances: list[mtn_instance] = []
     ):
         self.name = name
         if isinstance(interval, str):
@@ -116,6 +77,7 @@ class mtn_task:
             raise TypeError(
                 f"Expected 'interval' to be a string or timedelta, got '{type(interval)}' instead"
             )
+        self.mtn_instances = mtn_instances
 
     def record_run(
         self,
@@ -148,14 +110,108 @@ class mtn_task:
         return datetime.now(tz=timezone.utc) - self.get_last_instance().dtime_run
 
 
-class mtn_list:
-    # list of all the maintenance tasks
-    lst: list[mtn_task] = []
+class persistance_backend:
+    # TODO: load from a config file?
+    DB_CONFIG = {
+        "FILE_PATH": "./data/maintenance.db",
+        "DB_NAME": "main_db",
+        "TASK_LIST_TABLE": "task_list",
+        "TASK_TABLE": "tasks",
+        "INSTANCE_TABLE": "instances",
+    }
 
     def __init__(
         self,
     ):
-        self._load()
+        self.con = sqlite3.connect(self.DB_CONFIG["FILE_PATH"])
+        self._create_tables_if_not_exist()
+
+    def _create_tables_if_not_exist(self):
+        with self.con as c:
+            c.execute(
+                f"""
+                    CREATE TABLE IF NOT EXISTS {self.DB_CONFIG["TASK_TABLE"]} ( 
+                    task_id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+                    task_name TEXT NOT NULL,
+                    interval TEXT
+                    );
+                """
+            )
+            c.execute(
+                f"""
+                    CREATE TABLE IF NOT EXISTS {self.DB_CONFIG["INSTANCE_TABLE"]} ( 
+                    instance_id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+                    task_id INTEGER,
+                    dtime_run TEXT NOT NULL,
+                    is_skipped INTEGER,
+                    other_data TEXT
+                    );
+                """
+            )
+
+    def load_task_list(self) -> list[mtn_task]:
+        with self.con as c:
+            tasks = c.execute(
+                f"SELECT [task_id], [task_name], [interval] FROM {self.DB_CONFIG['TASK_TABLE']}"
+            )
+
+        return_list = []
+        for t in tasks:
+            insts = self.load_instances_from_task(t["task_id"])
+            return_list.append(
+                mtn_task(
+                    name=t["task_name"], interval=t["interval"], mtn_instances=insts
+                )
+            )
+
+        return return_list
+
+    def load_instances_from_task(self, task_id: int) -> list[mtn_instance]:
+        with self.con as c:
+            insts = c.execute(
+                f"""
+                SELECT [instance_id], [dtime_run], [is_skipped], [other_data]
+                FROM {self.DB_CONFIG['INSTANCE_TABLE']}
+                WHERE [task_id] = {task_id}
+                """
+            )
+        return_list = [
+            mtn_instance(i["dtime_run"], i["is_skipped"], json.loads(i["other_data"]))
+            for i in insts
+        ]
+
+        return return_list
+
+    # brute force re-loading everything from scratch,
+    # surelly we can make this more effective, but it will work for the prototype
+    def save(self, lst: list[mtn_task]):
+        with self.con as c:
+            c.execute(f"DELETE FROM {self.DB_CONFIG['TASK_TABLE']}")
+            c.execute(f"DELETE FROM {self.DB_CONFIG['INSTANCE_TABLE']}")
+
+        with self.con as c:
+            cur = c.cursor()
+            sql_tupples = [(t.name, str(t.interval)) for t in lst]
+            cur.executemany(
+                f"INSERT INTO {self.DB_CONFIG['TASK_TABLE']} (name, interval) VALUES (?,?)",
+                sql_tupples,
+            )
+            # CONTINUE HERE
+            sql_tupples = [()]
+
+
+class mtn_list:
+    # list of all the maintenance tasks
+    lst: list[mtn_task] = []
+    backend: persistance_backend
+
+    def __init__(
+        self,
+        task_list: list[mtn_task],
+    ):
+        self.lst = task_list
+        self.backend = persistance_backend()
+        lst = self.backend.load_task_list()
 
     def add_task(self, task: mtn_task) -> Self:
         # adds a task to the list
@@ -166,12 +222,12 @@ class mtn_list:
                     f"tried to add a task named {task.name} but there's already one in the list"
                 )
         self.lst.append(task)
-        self._save()
+        self.backend.save(self.lst)
         return self
 
     def delete_task(self, task: mtn_task) -> Self:
         self.lst.remove(task)
-        self._save()
+        self.backend.save(self.lst)
         return self
 
     def get_task_by_name(self, name: str) -> mtn_task:
@@ -215,16 +271,6 @@ class mtn_list:
                 ]
             case list_options.NOT_OVERDUE:
                 return [t for t in filter_result if not t.check_if_overdue()]
-
-    def _save(
-        self,
-    ):
-        pass
-
-    def _load(
-        self,
-    ):
-        pass
 
 
 class schedulable_mnt_task(mtn_task):
