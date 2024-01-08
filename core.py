@@ -95,6 +95,12 @@ class task_lister(UserList):
             logging.debug(error_msg)
             raise (TaskWithSameNameError(error_msg))
 
+    def get_task_by_name(self, target_name: str) -> task | None:
+        for t in self.data:
+            if t.name == target_name:
+                return t
+        return None
+
 
 class action_lister(UserList):
     def __init__(self, action_list: Sequence[action] = []):
