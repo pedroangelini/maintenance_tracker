@@ -38,7 +38,7 @@ class Ordering(Enum):
 
 
 @dataclass(frozen=True)
-class task:
+class Task:
     name: str = "default_task"
     description: str = "No description provided"
     start_time: datetime | None = None
@@ -49,9 +49,9 @@ class task:
 
 
 @dataclass(frozen=True)
-class action:
+class Action:
     timestamp: datetime
-    ref_task: task
+    ref_task: Task
     name: str = ""
     description: str = ""
     actor: str = ""
@@ -64,8 +64,8 @@ class TaskWithSameNameError(KeyError):
     pass
 
 
-class task_lister(UserList):
-    def __init__(self, task_list: Sequence[task] = []):
+class TaskLister(UserList):
+    def __init__(self, task_list: Sequence[Task] = []):
         names = [t.name for t in task_list]
         if len(names) > len(set(names)):
             error_msg = f"Error adding a task to the list: cannot have two tasks with the same name. Got these names'{names}'."
@@ -80,14 +80,14 @@ class task_lister(UserList):
                 return False
         return True
 
-    def add(self, new_task: task) -> None:
+    def add(self, new_task: Task) -> None:
         self.append(new_task)
 
-    def extend(self, new_tasks: Sequence[task]) -> None:
+    def extend(self, new_tasks: Sequence[Task]) -> None:
         for t in new_tasks:
             self.append(t)
 
-    def append(self, new_task: task) -> None:
+    def append(self, new_task: Task) -> None:
         if self._check_task_name_available(new_task.name):
             super().append(new_task)
         else:
@@ -95,19 +95,19 @@ class task_lister(UserList):
             logging.debug(error_msg)
             raise (TaskWithSameNameError(error_msg))
 
-    def get_task_by_name(self, target_name: str) -> task | None:
+    def get_task_by_name(self, target_name: str) -> Task | None:
         for t in self.data:
             if t.name == target_name:
                 return t
         return None
 
 
-class action_lister(UserList):
-    def __init__(self, action_list: Sequence[action] = []):
+class ActionLister(UserList):
+    def __init__(self, action_list: Sequence[Action] = []):
         super().__init__(action_list)
 
     def __eq__(self, other):
-        if not isinstance(other, action_lister):
+        if not isinstance(other, ActionLister):
             raise TypeError(f"Cannot compare action_list to {type(other)}")
 
         if len(self) != len(other):
@@ -176,17 +176,17 @@ class MtnTrackerJSONDecoder(json.JSONDecoder):
             return datetime(**d)
         elif type == "timedelta":
             return timedelta(**d)
-        elif type == "task":
-            return task(**d)
-        elif type == "action":
-            return action(**d)
+        elif type == "Task":
+            return Task(**d)
+        elif type == "Action":
+            return Action(**d)
         else:
             # Oops... better put this back together.
             d["__type__"] = type
             return d
 
 
-class persister:
+class Persister:
     dirname: str = DEFAULT_SAVE_DIR
     filename: str
     save_path: Path
@@ -218,7 +218,7 @@ class persister:
             )
 
 
-class action_list_persister(persister):
+class ActionListPersister(Persister):
     def __init__(self, action_list, dirname=None, filename=None):
         super().__init__(action_list)
         if dirname is not None:
@@ -229,7 +229,7 @@ class action_list_persister(persister):
         self.save_path = Path(self.dirname).joinpath(self.filename)
 
 
-class task_list_persister(persister):
+class TaskListPersister(Persister):
     def __init__(self, task_list, dirname=None, filename=None):
         super().__init__(task_list)
         if dirname is not None:
