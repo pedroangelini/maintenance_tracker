@@ -39,6 +39,34 @@ def task3():
     )
 
 
+@pytest.fixture(scope="function")
+def action1_t1(task1):
+    return Action(
+        datetime(
+            2024,
+            1,
+            1,
+        ),
+        task1,
+        "ran task1 on new year day",
+        "me",
+    )
+
+
+@pytest.fixture(scope="function")
+def action2_t1(task1):
+    return Action(
+        datetime(
+            2024,
+            1,
+            2,
+        ),
+        task1,
+        "ran task1 on the second of the year",
+        "me",
+    )
+
+
 def test_save_load_task_list(tmp_path, task1, task2, task3):
     tsk_lst = TaskLister([task1, task2])
     tsk_lst.add(task3)
@@ -59,6 +87,23 @@ def test_save_load_task_list(tmp_path, task1, task2, task3):
     assert type(new_task_list) == type(tsk_lst)
 
 
+def test_save_load_acion_list(tmp_path, action1_t1, action2_t1):
+    act_lst = ActionLister([action1_t1, action2_t1])
+
+    logging.debug(f"Temporary path for ActionListPersister {tmp_path}")
+    al_saver = ActionListPersister(act_lst, dirname=tmp_path)
+
+    al_saver._remove_file()
+
+    al_saver.save()
+
+    new_al_saver = ActionListPersister(ActionLister([]), dirname=tmp_path)
+    new_action_list = new_al_saver.load()
+
+    al_saver._remove_file()
+
+    assert new_action_list == act_lst
+    assert type(new_action_list) == type(act_lst)
 
 
 def test_task_lister_collision(task1):
