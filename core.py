@@ -22,7 +22,7 @@ from abc import ABC, abstractmethod
 from collections import UserList
 from copy import deepcopy
 from dataclasses import asdict, dataclass, is_dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta, UTC
 from enum import Enum
 from pathlib import Path
 from typing import Any, Sequence
@@ -46,6 +46,60 @@ class Task:
 
     def copy(self):
         return deepcopy(self)
+
+    def get_programmed_time(
+        self, n=1, now_to_be_used: datetime | None = None
+    ) -> datetime | None:
+        """Gets the nth next programmed time for the task. n can be negative, in which case
+        gets the nth previous programmed time for the task.
+
+        Args:
+            n (int, optional): the index of the programmed. Defaults to 1 which is the next
+                               programmed time. 2 would be the programmed time after the next.
+                               n can be negative: -1 would be the last, -2 the second for
+                               the last and etc. Zero is not a valid value
+            now_to_be_used (datetime | None, optional): Allows to define the base time for the n
+                               indexing. Defaults to None, in which case datime.now() is used.
+
+        Raises:
+            IndexError: If 0 is passed, raises Index Error
+
+        Returns:
+            datetime | None: The nth programmed datetime for the task, or None if the task does
+                             not have a start_time, or there are no programmed intervals to reach
+                             this n index (eg: asked for the previous start time for a task that has
+                             not started yet)
+        """
+        if n == 0:
+            raise IndexError(
+                "Index 0 is not valid, the use -1 for the last programmed time before today, or 1 for the next"
+            )
+
+        if now_to_be_used is None:
+            now_to_be_used = datetime.now(UTC)
+
+        if self.start_time is None:
+            return None
+
+        # if self.start_time > now_to_be_used:
+        #     if n < 0:
+        #         return None
+        #     else:
+        #         return self.start_time + (self.interval * n)
+
+        # if self.start_time < now_to_be_used:
+        num_intervals_elapsed = (now_to_be_used - self.start_time) // self.interval
+
+        if n < 0:
+            proposed_return = self.start_time + (
+                self.interval * (num_intervals_elapsed + 1 + n)
+            )
+            if proposed_return < self.start_time:
+                return None
+            else:
+                return proposed_return
+        else:  # index > 0
+            return self.start_time + (self.interval * (num_intervals_elapsed + n))
 
 
 @dataclass(frozen=True)
