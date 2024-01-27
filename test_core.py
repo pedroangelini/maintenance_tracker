@@ -113,8 +113,7 @@ def test_save_load_acion_list(tmp_path, action1_t1, action2_t1):
 
     al_saver._remove_file()
 
-    assert new_action_list == act_lst
-    assert type(new_action_list) == type(act_lst)
+    assert (new_action_list == act_lst) and type(new_action_list) == type(act_lst)
 
 
 def test_task_lister_collision(task1):
