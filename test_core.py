@@ -1,7 +1,7 @@
 from core import *
 import pytest
 import logging
-from datetime import datetime
+from datetime import datetime, UTC
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -36,6 +36,17 @@ def task3():
         description="adding this one #3",
         start_time=datetime(2023, 12, 25, 17, 32),
         interval=timedelta(minutes=30),
+    )
+
+
+@pytest.fixture(scope="function")
+def task4():
+    """A fourth without start time or interval"""
+    return Task(
+        name="my third task",
+        description="adding this one #3",
+        start_time=None,
+        interval=None,
     )
 
 
@@ -129,6 +140,32 @@ def test_task_lister_collision(task1):
         lst = TaskLister([])
         lst = lst + [t1]
         lst = lst + [t2]
+
+
+@pytest.mark.parametrize(
+    "task,now_tbu,n,expected_prog_time",
+    [
+        # see https://engineeringfordatascience.com/posts/pytest_fixtures_with_parameterize/ for fixtures in parametrized test
+        ("task1", datetime(2023, 12, 24, 18, 00), +1, datetime(2023, 12, 24, 18, 32)),
+        ("task1", datetime(2023, 12, 24, 18, 00), -1, datetime(2023, 12, 24, 17, 32)),
+        ("task1", datetime(2023, 12, 24, 18, 00), +3, datetime(2023, 12, 24, 20, 32)),
+        (
+            "task1",
+            datetime(2023, 12, 24, 18, 00),
+            -2,
+            None,
+        ),  # would fall before the start time
+        ("task1", datetime(2024, 6, 10, 18, 00), -5, datetime(2024, 6, 10, 13, 32)),
+        ("task4", datetime(2023, 12, 24, 18, 00), 5, None),
+    ],
+)
+def test_get_programmed_time(task, now_tbu, n, expected_prog_time, request):
+    task_instance = request.getfixturevalue(task)
+    returned_value = task_instance.get_programmed_time(n=n, now_to_be_used=now_tbu)
+    if expected_prog_time is None:
+        assert returned_value is None
+    else:
+        assert returned_value == expected_prog_time
 
 
 if __name__ == "__main__":
