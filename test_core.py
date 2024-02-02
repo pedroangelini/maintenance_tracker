@@ -1,7 +1,10 @@
+from pathlib import Path
 from core import *
 import pytest
 import logging
 from datetime import datetime, UTC
+
+from core import Action, Task
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -34,8 +37,8 @@ def task3():
     return Task(
         name="my third task",
         description="adding this one #3",
-        start_time=datetime(2023, 12, 25, 17, 32),
-        interval=timedelta(minutes=30),
+        start_time=datetime(2023, 12, 25, 17, 5),
+        interval=timedelta(minutes=15),
     )
 
 
@@ -43,7 +46,7 @@ def task3():
 def task4():
     """A fourth without start time or interval"""
     return Task(
-        name="my third task",
+        name="my fourth task",
         description="adding this one #3",
         start_time=None,
         interval=None,
@@ -51,7 +54,7 @@ def task4():
 
 
 @pytest.fixture(scope="function")
-def action1_t1(task1):
+def action1_t1(task1: Task):
     return Action(
         datetime(
             2024,
@@ -65,7 +68,7 @@ def action1_t1(task1):
 
 
 @pytest.fixture(scope="function")
-def action2_t1(task1):
+def action2_t1(task1: Task):
     return Action(
         datetime(
             2024,
@@ -78,7 +81,7 @@ def action2_t1(task1):
     )
 
 
-def test_save_load_task_list(tmp_path, task1, task2, task3):
+def test_save_load_task_list(tmp_path: Path, task1: Task, task2: Task, task3: Task):
     tsk_lst = TaskLister([task1, task2])
     tsk_lst.add(task3)
 
@@ -98,7 +101,7 @@ def test_save_load_task_list(tmp_path, task1, task2, task3):
     assert type(new_task_list) == type(tsk_lst)
 
 
-def test_save_load_acion_list(tmp_path, action1_t1, action2_t1):
+def test_save_load_acion_list(tmp_path: Path, action1_t1: Action, action2_t1: Action):
     act_lst = ActionLister([action1_t1, action2_t1])
 
     logging.debug(f"Temporary path for ActionListPersister {tmp_path}")
@@ -116,7 +119,7 @@ def test_save_load_acion_list(tmp_path, action1_t1, action2_t1):
     assert (new_action_list == act_lst) and type(new_action_list) == type(act_lst)
 
 
-def test_task_lister_collision(task1):
+def test_task_lister_collision(task1: Task):
     t1 = task1
     t2 = task1.copy()
 
@@ -158,13 +161,60 @@ def test_task_lister_collision(task1):
         ("task4", datetime(2023, 12, 24, 18, 00), 5, None),
     ],
 )
-def test_get_programmed_time(task, now_tbu, n, expected_prog_time, request):
+def test_get_programmed_time(
+    task: str,
+    now_tbu: datetime,
+    n: int,
+    expected_prog_time: datetime | None,
+    request: pytest.FixtureRequest,
+):
     task_instance = request.getfixturevalue(task)
     returned_value = task_instance.get_programmed_time(n=n, now_to_be_used=now_tbu)
     if expected_prog_time is None:
         assert returned_value is None
     else:
         assert returned_value == expected_prog_time
+
+
+def test_get_next_tasks_due_period__success(task1, task2, task3, task4):
+    tsk_lst = TaskLister([task1, task2, task3, task4])
+
+    now_tbu = datetime(2024, 1, 20, 10, 0)
+
+    ret = tsk_lst.get_next_tasks_due_period(timedelta(hours=1), now_tbu)
+
+    # task1 is programmed every hour, at 32 min
+    # task2 is programmed every 30 min at 32 and 02 min
+    # task3 is programmed to run every 15 min, at 05, 20, 35, 50 min of every hour
+    # task4 is not programmed to run
+    # fmt: off
+    assert len(ret) == 3, \
+         f"have more tasks than expected, got {len(ret)}, was expecting 3"
+    assert ret[0][0] == task1, "issue on task1"
+    assert ret[0][1] == datetime(2024, 1, 20, 10, 32), "issue on task1 next programmed time"
+    assert ret[1][0] == task2, "issue on task2"
+    assert ret[1][1] == datetime(2024, 1, 20, 10, 2), "issue on task2 next programmed time"
+    assert ret[2][0] == task3, "issue on task3"
+    assert ret[2][1] == datetime(2024, 1, 20, 10, 5), "issue on task3 next programmed time"
+    # fmt: on
+
+
+def test_get_next_tasks_due_period__none(task1, task2, task3, task4):
+    tsk_lst = TaskLister([task4])
+
+    now_tbu = datetime(2024, 1, 20, 10, 0)
+
+    ret = tsk_lst.get_next_tasks_due_period(timedelta(hours=1), now_tbu)
+    assert ret == []
+
+
+def test_get_next_tasks_due_period__before_start(task1, task2, task3, task4):
+    tsk_lst = TaskLister([task1, task2])
+
+    now_tbu = datetime(2022, 1, 20, 10, 0)
+
+    ret = tsk_lst.get_next_tasks_due_period(timedelta(hours=1), now_tbu)
+    assert ret == []
 
 
 if __name__ == "__main__":

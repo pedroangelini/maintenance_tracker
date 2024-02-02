@@ -1,15 +1,7 @@
 import logging
-from core import (
-    Task,
-    TaskLister,
-    TaskListPersister,
-    Action,
-    ActionLister,
-    ActionListPersister,
-    Ordering,
-)
+from core import *
 from enum import Enum
-from datetime import datetime, UTC
+from datetime import datetime, timedelta, UTC
 
 
 class ActionRecordResults(Enum):
@@ -145,11 +137,24 @@ class MaintenanceTracker:
             and last_run.timestamp < last_programmed_time
         )
 
-    def get_next_due_time(self, task):
-        pass
+    def time_since_last_exec(
+        self, task: Task, now_to_be_used: datetime | None = None
+    ) -> timedelta | None:
+        """Gets a timedelta between now_to_be_used and the last action for this task
 
-    def time_since_last_exec(self, task):
-        pass
+        Args:
+            task (Task): target task
+            now_to_be_used (datetime | None, optional): a timestamp to be used as now. Defaults to None.
 
-    def list_tasks(self, criteria, **kwargs):
-        pass
+        Returns:
+            timedelta | None: timedelta since the last recorded task run. Returns None if no run has happened
+        """
+        if now_to_be_used is None:
+            now_to_be_used = datetime.now(UTC)
+
+        last_run = self.get_latest_task_run(task)
+
+        if last_run is None:
+            return None
+        else:
+            return now_to_be_used - last_run.timestamp
