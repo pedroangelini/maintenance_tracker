@@ -101,6 +101,11 @@ class Task:
         else:  # index > 0
             return self.start_time + (self.interval * (num_intervals_elapsed + n))
 
+    def get_all_programmed_times(
+        self, period: timedelta, now_to_be_used: datetime
+    ) -> list[tuple] | None:
+        raise NotImplementedError()
+
 
 @dataclass(frozen=True)
 class Action:
@@ -154,6 +159,72 @@ class TaskLister(UserList):
             if t.name == target_name:
                 return t
         return None
+
+    def get_next_tasks_due_period(
+        self, period: timedelta, now_to_be_used: datetime | None = None
+    ) -> list[tuple]:
+        """gets the next programmed time for each task within a
+        time period
+
+        Args:
+            period (timedelta): the time period after now_to_be_used considered
+            now_to_be_used (datetime | None, optional): Allows to determine which time to consider as now. Defaults to None.
+
+        Returns:
+            list[tuple]: list of tuples containing (Task, datetime), only containing the Tasks that
+            have programmed runs after now_to_be_used, and the datetime of this next programmed run
+        """
+        if now_to_be_used is None:
+            now_to_be_used = datetime.utcnow()
+
+        end_period = now_to_be_used + period
+
+        return_task_list = TaskLister()
+        return_task_times = []
+
+        for t in self.data:
+            next_run = t.get_programmed_time(n=1, now_to_be_used=now_to_be_used)
+            if next_run and t.start_time <= next_run <= end_period:
+                return_task_list.append(t)
+                return_task_times.append(next_run)
+
+        return list(zip(return_task_list, return_task_times))
+
+    def get_all_tasks_due_period(
+        self, period: timedelta, now_to_be_used: datetime | None = None
+    ) -> list[tuple]:
+        """gets the all the programmed times for each task within a time period
+
+        Args:
+            period (timedelta): the time period after now_to_be_used considered
+            now_to_be_used (datetime | None, optional): Allows to determine which time to consider as now. Defaults to None.
+
+        Returns:
+            list[tuple]: list of tuples containing (Task, (datetime, datetime, ...)), only containing the Tasks that
+            have programmed runs after now_to_be_used, and the datetime of all programmed run within the time period
+        """
+        if now_to_be_used is None:
+            now_to_be_used = datetime.utcnow()
+
+        end_period = now_to_be_used + period
+
+        return_task_list = []
+        return_task_times = []
+
+        for t in self.data:
+            return_next_runs = []
+            next_runs = t.get_all_programmed_times(
+                period, now_to_be_used=now_to_be_used
+            )
+            for r in next_runs:
+                if r and t.start_time <= r <= end_period:
+                    return_next_runs.append(r)
+
+            if return_next_runs:
+                return_task_list.append(t)
+                return_task_times.append(tuple(return_next_runs))
+
+        return list(zip(return_task_list, return_task_times))
 
 
 class ActionLister(UserList):
