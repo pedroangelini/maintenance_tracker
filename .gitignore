@@ -1,3 +1,8 @@
 /data
 .vscode
 /__pycache__
+# tests (pytest and coverage)
+/.pytest_cache
+.coverage
+coverage.xml
+/htmlcov

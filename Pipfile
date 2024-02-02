@@ -8,6 +8,7 @@ name = "pypi"
 [dev-packages]
 ipython = "*"
 pytest = "*"
+pytest-cov = "*"
 
 [requires]
 python_version = "3.12"
