@@ -105,7 +105,7 @@ class MaintenanceTracker:
 
         return ActionLister(result_list)
 
-    def get_latest_task_run(self, tgt_task: Task) -> Action:
+    def get_latest_task_run(self, tgt_task: Task) -> Action | None:
         """Returns the most recent run of a task
 
         Args:
@@ -115,8 +115,10 @@ class MaintenanceTracker:
             action: the latest action of the the reference task
         """
         actions = self.get_actions_for_task(tgt_task, ordered=Ordering.DESC)
-
-        return actions[0]
+        if len(actions) > 0:
+            return actions[0]
+        else:
+            return None
 
     def check_overdue(self, task: Task) -> bool:
         """Checks if a task is overdue.
@@ -134,11 +136,13 @@ class MaintenanceTracker:
             # tasks without programmed time are never overdue
             return False
 
-        last_run_time = self.get_latest_task_run(task).timestamp
+        last_run = self.get_latest_task_run(task)
+        if last_run is None:
+            return last_programmed_time < datetime.now(UTC)
 
         return (
             last_programmed_time < datetime.now(UTC)
-            and last_run_time < last_programmed_time
+            and last_run.timestamp < last_programmed_time
         )
 
     def get_next_due_time(self, task):
