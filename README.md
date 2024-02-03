@@ -47,6 +47,35 @@ If the app cannot determine the periodicity of a specific part, it will still tr
 
 _inspired by [timetrace, by Dominik Braun](https://github.com/dominikbraun/timetrace)_
 
+_using Typer library_
+
+### Summary of commands & Subcommands
+
+```
+mtntrack
+ |-- add
+ |    |-- task
+ |    |-- action           # (same as mtntrack record)
+ |-- record [run]
+ |-- list
+ |    |-- tasks
+ |    |-- actions
+ |-- get
+ |    |-- task
+ |    |-- action
+ |-- edit
+ |    |-- task
+ |    |-- action
+ |-- delete
+ |    |-- task
+ |    |-- action
+ |-- report
+      |-- overdue
+      |-- next [run]
+      |-- tasks
+      |-- actions
+```
+
 ### Add a task to the list:
 
 `mtntrack add task [-i| --interactive | <task_name> <start_time> <periodicity> <description>]`
@@ -61,14 +90,19 @@ _inspired by [timetrace, by Dominik Braun](https://github.com/dominikbraun/timet
 
 ### Record the run of a task
 
-`mtntrack record [run] <task_name> [now|<action_timestamp>] <action_name>`
+`mtntrack record [run] <task_name> [now|<action_timestamp>] <action_name> <actor>`
 
-| Argument           | Description                      |
-| ------------------ | -------------------------------- |
-| `run`              | optional, doesn't do anything    |
-| `task_name`        | The name of the task             |
-| `action_timestamp` | The time the action was executed |
-| `action_name`      | A name for the action (optional) |
+or
+
+`mtntrack add action <task_name> [now|<action_timestamp>] <action_name> <actor>`
+
+| Argument           | Description                           |
+| ------------------ | ------------------------------------- |
+| `run`              | optional, doesn't do anything         |
+| `task_name`        | The name of the task                  |
+| `action_timestamp` | The time the action was executed      |
+| `action_name`      | A name for the action (optional)      |
+| `actor`            | name of the person who did the action |
 
 ### List tasks
 
@@ -126,7 +160,7 @@ If a name or timestamp is provided and there are 2 or more actions that fit the 
 
 ie: task, timestamp, name, actor
 
-`mtntrack edit task <task_name> [<action_timestamp>|<action_name>] [-i| --interactive | <new_task_name> <new_action_timestamp> <new_actor>]`
+`mtntrack edit action <task_name> [<action_timestamp>|<action_name>] [-i| --interactive | <new_task_name> <new_action_timestamp> <new_actor>]`
 
 | Argument               | Description                                                                                                    |
 | ---------------------- | -------------------------------------------------------------------------------------------------------------- |
