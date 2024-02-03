@@ -42,7 +42,7 @@ class Task:
     name: str = "default_task"
     description: str = "No description provided"
     start_time: datetime | None = None
-    interval: timedelta = timedelta(seconds=0)
+    interval: timedelta | None = timedelta(seconds=0)
 
     def copy(self):
         return deepcopy(self)
@@ -81,14 +81,14 @@ class Task:
         if self.start_time is None:
             return None
 
-        # if self.start_time > now_to_be_used:
-        #     if n < 0:
-        #         return None
-        #     else:
-        #         return self.start_time + (self.interval * n)
+        if not self.interval:
+            if n == 1 and self.start_time > when:
+                return self.start_time
+            elif n == -1 and self.start_time <= when:
+                return self.start_time
+            else:
+                return None
 
-        # if self.start_time < now_to_be_used:
-        num_intervals_elapsed = (now_to_be_used - self.start_time) // self.interval
 
         if n < 0:
             proposed_return = self.start_time + (
