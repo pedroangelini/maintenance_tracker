@@ -101,7 +101,7 @@ def test_save_load_task_list(tmp_path: Path, task1: Task, task2: Task, task3: Ta
     assert type(new_task_list) == type(tsk_lst)
 
 
-def test_save_load_acion_list(tmp_path: Path, action1_t1: Action, action2_t1: Action):
+def test_save_load_action_list(tmp_path: Path, action1_t1: Action, action2_t1: Action):
     act_lst = ActionLister([action1_t1, action2_t1])
 
     logging.debug(f"Temporary path for ActionListPersister {tmp_path}")
@@ -169,7 +169,7 @@ def test_get_programmed_time(
     request: pytest.FixtureRequest,
 ):
     task_instance = request.getfixturevalue(task)
-    returned_value = task_instance.get_programmed_time(n=n, now_to_be_used=now_tbu)
+    returned_value = task_instance.get_programmed_time(n=n, when=now_tbu)
     if expected_prog_time is None:
         assert returned_value is None
     else:

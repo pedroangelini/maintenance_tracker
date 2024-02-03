@@ -47,9 +47,7 @@ class Task:
     def copy(self):
         return deepcopy(self)
 
-    def get_programmed_time(
-        self, n=1, now_to_be_used: datetime | None = None
-    ) -> datetime | None:
+    def get_programmed_time(self, n=1, when: datetime | None = None) -> datetime | None:
         """Gets the nth next programmed time for the task. n can be negative, in which case
         gets the nth previous programmed time for the task.
 
@@ -58,8 +56,8 @@ class Task:
                                programmed time. 2 would be the programmed time after the next.
                                n can be negative: -1 would be the last, -2 the second for
                                the last and etc. Zero is not a valid value
-            now_to_be_used (datetime | None, optional): Allows to define the base time for the n
-                               indexing. Defaults to None, in which case datime.now() is used.
+            when (datetime | None, optional): Allows to define the base time for the n
+                               indexing. Defaults to None, in which case datetime.now() is used.
 
         Raises:
             IndexError: If 0 is passed, raises Index Error
@@ -75,8 +73,8 @@ class Task:
                 "Index 0 is not valid, the use -1 for the last programmed time before today, or 1 for the next"
             )
 
-        if now_to_be_used is None:
-            now_to_be_used = datetime.now(UTC)
+        if when is None:
+            when = datetime.now(UTC)
 
         if self.start_time is None:
             return None
@@ -89,6 +87,7 @@ class Task:
             else:
                 return None
 
+        num_intervals_elapsed = (when - self.start_time) // self.interval
 
         if n < 0:
             proposed_return = self.start_time + (
@@ -102,7 +101,7 @@ class Task:
             return self.start_time + (self.interval * (num_intervals_elapsed + n))
 
     def get_all_programmed_times(
-        self, period: timedelta, now_to_be_used: datetime
+        self, period: timedelta, when: datetime
     ) -> list[tuple] | None:
         raise NotImplementedError()
 
@@ -161,29 +160,29 @@ class TaskLister(UserList):
         return None
 
     def get_next_tasks_due_period(
-        self, period: timedelta, now_to_be_used: datetime | None = None
+        self, period: timedelta, when: datetime | None = None
     ) -> list[tuple]:
         """gets the next programmed time for each task within a
         time period
 
         Args:
-            period (timedelta): the time period after now_to_be_used considered
-            now_to_be_used (datetime | None, optional): Allows to determine which time to consider as now. Defaults to None.
+            period (timedelta): the time period after "when" considered
+            when (datetime | None, optional): Allows to determine which time to consider as now. Defaults to None.
 
         Returns:
             list[tuple]: list of tuples containing (Task, datetime), only containing the Tasks that
-            have programmed runs after now_to_be_used, and the datetime of this next programmed run
+            have programmed runs after "when", and the datetime of this next programmed run
         """
-        if now_to_be_used is None:
-            now_to_be_used = datetime.utcnow()
+        if when is None:
+            when = datetime.utcnow()
 
-        end_period = now_to_be_used + period
+        end_period = when + period
 
         return_task_list = TaskLister()
         return_task_times = []
 
         for t in self.data:
-            next_run = t.get_programmed_time(n=1, now_to_be_used=now_to_be_used)
+            next_run = t.get_programmed_time(n=1, when=when)
             if next_run and t.start_time <= next_run <= end_period:
                 return_task_list.append(t)
                 return_task_times.append(next_run)
@@ -191,31 +190,29 @@ class TaskLister(UserList):
         return list(zip(return_task_list, return_task_times))
 
     def get_all_tasks_due_period(
-        self, period: timedelta, now_to_be_used: datetime | None = None
+        self, period: timedelta, when: datetime | None = None
     ) -> list[tuple]:
         """gets the all the programmed times for each task within a time period
 
         Args:
-            period (timedelta): the time period after now_to_be_used considered
-            now_to_be_used (datetime | None, optional): Allows to determine which time to consider as now. Defaults to None.
+            period (timedelta): the time period after "when" considered
+            when (datetime | None, optional): Allows to determine which time to consider as now. Defaults to None.
 
         Returns:
             list[tuple]: list of tuples containing (Task, (datetime, datetime, ...)), only containing the Tasks that
-            have programmed runs after now_to_be_used, and the datetime of all programmed run within the time period
+            have programmed runs after "when", and the datetime of all programmed run within the time period
         """
-        if now_to_be_used is None:
-            now_to_be_used = datetime.utcnow()
+        if when is None:
+            when = datetime.utcnow()
 
-        end_period = now_to_be_used + period
+        end_period = when + period
 
         return_task_list = []
         return_task_times = []
 
         for t in self.data:
             return_next_runs = []
-            next_runs = t.get_all_programmed_times(
-                period, now_to_be_used=now_to_be_used
-            )
+            next_runs = t.get_all_programmed_times(period, when=when)
             for r in next_runs:
                 if r and t.start_time <= r <= end_period:
                     return_next_runs.append(r)

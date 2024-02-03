@@ -66,13 +66,6 @@ def test_record_run(task1):
         "a description for the first run of task1",
         "Pedro",
     )
-    action2 = Action(
-        datetime(2024, 1, 7, 11, 15),
-        task1,
-        "running the first task again",
-        "a description for the Second of task 1",
-        "Pedro",
-    )
 
     mtnt = MaintenanceTracker()
     mtnt.record_run(action1)
