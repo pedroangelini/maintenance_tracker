@@ -1,6 +1,7 @@
 /data
 .vscode
 /__pycache__
+Pipfile.lock
 # tests (pytest and coverage)
 /.pytest_cache
 .coverage
