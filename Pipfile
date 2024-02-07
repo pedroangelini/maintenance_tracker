@@ -9,6 +9,7 @@ name = "pypi"
 ipython = "*"
 pytest = "*"
 pytest-cov = "*"
+black = "*"
 
 [requires]
 python_version = "3"
