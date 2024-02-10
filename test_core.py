@@ -81,6 +81,25 @@ def action2_t1(task1: Task):
     )
 
 
+def test_task_equality(task1: Task, task2: Task):
+    task1_copy = task1.copy()
+    assert task1 == task1_copy, "issue with Task equality"
+    assert task1 != task2, "issue with Task inequality"
+    assert task1 != "que?", "issue with equality of different types (Task)"
+
+
+def test_action_list_equality(task1: Task, action1_t1: Action, action2_t1: Action):
+    action_lst1 = ActionLister([action1_t1, action2_t1])
+    action_lst1_copy = ActionLister([action1_t1, action2_t1])
+    action_lst2 = ActionLister([action1_t1])
+
+    assert action_lst1 == action_lst1_copy, "issue with ActionLister equality"
+    assert action_lst1 != action_lst2, "issue with ActionLister inequality"
+    assert (
+        action_lst1 != "que?"
+    ), "issue with equality of different types (ActionLister)"
+
+
 def test_save_load_task_list(tmp_path: Path, task1: Task, task2: Task, task3: Task):
     tsk_lst = TaskLister([task1, task2])
     tsk_lst.add(task3)
@@ -99,6 +118,39 @@ def test_save_load_task_list(tmp_path: Path, task1: Task, task2: Task, task3: Ta
 
     assert new_task_list == tsk_lst
     assert type(new_task_list) == type(tsk_lst)
+
+
+def test_get_task_by_name(task1, task2):
+    tsk_lst = TaskLister([task1, task2])
+    assert task2 == tsk_lst.get_task_by_name(
+        "my second task"
+    ), "did not get the right task"
+    assert (
+        tsk_lst.get_task_by_name("non-existing-name") is None
+    ), "search for non existing task didn't return None"
+
+
+def test_get_all_tasks_due_period(task1, task2):
+    tsk_lst = TaskLister([task1, task2])
+
+    when = datetime(2024, 1, 30, 10, 10)
+
+    # task1 every hour at 32 min
+    # task2 every 30 min at 02 min and 32 min
+
+    period = timedelta(hours=1)
+    return1 = tsk_lst.get_all_tasks_due_period(period, when)
+    assert return1 == [
+        (task1, (datetime(2024, 1, 30, 10, 32),)),
+        (task2, (datetime(2024, 1, 30, 10, 32), datetime(2024, 1, 30, 11, 2))),
+    ]
+
+    period = timedelta(hours=-1)
+    return2 = tsk_lst.get_all_tasks_due_period(period, when)
+    assert return2 == [
+        (task1, (datetime(2024, 1, 30, 9, 32),)),
+        (task2, (datetime(2024, 1, 30, 9, 32), datetime(2024, 1, 30, 10, 2))),
+    ]
 
 
 def test_save_load_action_list(tmp_path: Path, action1_t1: Action, action2_t1: Action):
