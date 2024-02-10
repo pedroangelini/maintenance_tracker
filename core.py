@@ -102,8 +102,38 @@ class Task:
 
     def get_all_programmed_times(
         self, period: timedelta, when: datetime
-    ) -> list[tuple] | None:
-        raise NotImplementedError()
+    ) -> list[datetime]:
+
+        if self.start_time is None:
+            return []
+
+        tgt_period_start = when if period >= timedelta(0) else (when + period)
+        tgt_period_end = (when + period) if period >= timedelta(0) else when
+
+        # check if task has runs in the desired period
+        if self.start_time > tgt_period_end:
+            return []
+
+        # if task doesn't repeat, return only the start time if it is within the target period bounds
+        if not self.interval:
+            if self.start_time > tgt_period_start:
+                return [self.start_time]
+            else:
+                return []
+
+        ret_list = []
+        # otherwise, get runs and append to the list
+        i = 1
+        while True:
+            prog_time = self.get_programmed_time(n=i, when=tgt_period_start)
+            if not prog_time or prog_time > tgt_period_end:
+                break
+
+            ret_list.append(prog_time)
+
+            i = i + 1
+
+        return ret_list
 
 
 @dataclass(frozen=True)
@@ -161,7 +191,7 @@ class TaskLister(UserList):
 
     def get_next_tasks_due_period(
         self, period: timedelta, when: datetime | None = None
-    ) -> list[tuple]:
+    ) -> list[tuple[Task, list[datetime]]]:
         """gets the next programmed time for each task within a
         time period
 
@@ -171,7 +201,7 @@ class TaskLister(UserList):
 
         Returns:
             list[tuple]: list of tuples containing (Task, datetime), only containing the Tasks that
-            have programmed runs after "when", and the datetime of this next programmed run
+            have programmed runs after "when", and the datetime of all the next programmed runs in the period
         """
         if when is None:
             when = datetime.utcnow()
