@@ -235,20 +235,23 @@ class TaskLister(UserList):
         if when is None:
             when = datetime.utcnow()
 
-        end_period = when + period
+        start_period = when if period > timedelta(0) else (when + period)
+        end_period = (when + period) if period > timedelta(0) else when
+        period = -period if period < timedelta(0) else period
 
         return_task_list = []
         return_task_times = []
 
         for t in self.data:
             return_next_runs = []
-            next_runs = t.get_all_programmed_times(period, when=when)
+            next_runs = t.get_all_programmed_times(period, when=start_period)
             for r in next_runs:
                 if r and t.start_time <= r <= end_period:
                     return_next_runs.append(r)
 
             if return_next_runs:
                 return_task_list.append(t)
+                return_next_runs.sort()
                 return_task_times.append(tuple(return_next_runs))
 
         return list(zip(return_task_list, return_task_times))
@@ -260,7 +263,7 @@ class ActionLister(UserList):
 
     def __eq__(self, other):
         if not isinstance(other, ActionLister):
-            raise TypeError(f"Cannot compare action_list to {type(other)}")
+            return False
 
         if len(self) != len(other):
             return False
