@@ -97,22 +97,31 @@ class MaintenanceTracker:
 
         return ActionLister(result_list)
 
-    def get_latest_task_run(self, tgt_task: Task) -> Action | None:
+    def get_latest_task_run(
+        self, tgt_task: Task, when: datetime | None = None
+    ) -> Action | None:
         """Returns the most recent run of a task
 
         Args:
             tgt_task (task): the task we are looking for
+            when (datetime): the time considered as "now" for this return
 
         Returns:
             action: the latest action of the the reference task
         """
+        if when is None:
+            when = datetime.now(UTC)
+
         actions = self.get_actions_for_task(tgt_task, ordered=Ordering.DESC)
         if len(actions) > 0:
-            return actions[0]
-        else:
-            return None
+            for a in actions:
+                if a.timestamp > when:
+                    continue
+                return a
 
-    def check_overdue(self, task: Task) -> bool:
+        return None
+
+    def check_overdue(self, task: Task, when: datetime | None = None) -> bool:
         """Checks if a task is overdue.
         A task is overdue if we have not had an action run between the latest time the
         task was programmed before today
@@ -122,20 +131,20 @@ class MaintenanceTracker:
         Returns:
             bool: whether the task is overdue
         """
-        last_programmed_time = task.get_programmed_time(-1)
+        if when is None:
+            when = datetime.now(UTC)
+
+        last_programmed_time = task.get_programmed_time(-1, when)
 
         if last_programmed_time is None:
             # tasks without programmed time are never overdue
             return False
 
-        last_run = self.get_latest_task_run(task)
+        last_run = self.get_latest_task_run(task, when)
         if last_run is None:
-            return last_programmed_time < datetime.now(UTC)
+            return last_programmed_time < when
 
-        return (
-            last_programmed_time < datetime.now(UTC)
-            and last_run.timestamp < last_programmed_time
-        )
+        return last_programmed_time < when and last_run.timestamp < last_programmed_time
 
     def time_since_last_exec(
         self, task: Task, when: datetime | None = None
