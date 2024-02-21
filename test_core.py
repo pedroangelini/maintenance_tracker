@@ -15,7 +15,7 @@ def task1():
     return Task(
         name="my first task",
         description="a description for my task1",
-        start_time=datetime(2023, 12, 24, 17, 32),
+        start_time=datetime(2023, 12, 24, 17, 32, tzinfo=UTC),
         interval=timedelta(minutes=60),
     )
 
@@ -26,7 +26,7 @@ def task2():
     return Task(
         name="my second task",
         description="a description for my task2",
-        start_time=datetime(2023, 12, 25, 17, 32),
+        start_time=datetime(2023, 12, 25, 17, 32, tzinfo=UTC),
         interval=timedelta(minutes=30),
     )
 
@@ -37,7 +37,7 @@ def task3():
     return Task(
         name="my third task",
         description="adding this one #3",
-        start_time=datetime(2023, 12, 25, 17, 5),
+        start_time=datetime(2023, 12, 25, 17, 5, tzinfo=UTC),
         interval=timedelta(minutes=15),
     )
 
@@ -56,11 +56,7 @@ def task4():
 @pytest.fixture(scope="function")
 def action1_t1(task1: Task):
     return Action(
-        datetime(
-            2024,
-            1,
-            1,
-        ),
+        datetime(2024, 1, 1, 0, 0, tzinfo=UTC),
         task1,
         "ran task1 on new year day",
         "me",
@@ -70,13 +66,9 @@ def action1_t1(task1: Task):
 @pytest.fixture(scope="function")
 def action2_t1(task1: Task):
     return Action(
-        datetime(
-            2024,
-            1,
-            2,
-        ),
+        datetime(2024, 1, 2, 6, 0, tzinfo=UTC),
         task1,
-        "ran task1 on the second of the year",
+        "ran task1 on the second of the year, 6 AM",
         "me",
     )
 
