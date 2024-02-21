@@ -22,7 +22,7 @@ from abc import ABC, abstractmethod
 from collections import UserList
 from copy import deepcopy
 from dataclasses import asdict, dataclass, is_dataclass
-from datetime import datetime, timedelta, UTC
+from datetime import datetime, timedelta, UTC, timezone
 from enum import Enum
 from pathlib import Path
 from typing import Any, Sequence
@@ -296,6 +296,7 @@ class MtnTrackerJSONEncoder(json.JSONEncoder):
                 "minute": obj.minute,
                 "second": obj.second,
                 "microsecond": obj.microsecond,
+                "utcoffset": obj.utcoffset(),
             }
 
         elif isinstance(obj, timedelta):
@@ -328,7 +329,16 @@ class MtnTrackerJSONDecoder(json.JSONDecoder):
 
         type = d.pop("__type__")
         if type == "datetime":
-            return datetime(**d)
+            return datetime(
+                year=d["year"],
+                month=d["month"],
+                day=d["day"],
+                hour=d["hour"],
+                minute=d["minute"],
+                second=d["second"],
+                microsecond=d["microsecond"],
+                tzinfo=timezone(d["utcoffset"]),
+            )
         elif type == "timedelta":
             return timedelta(**d)
         elif type == "Task":

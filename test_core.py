@@ -15,7 +15,7 @@ def task1():
     return Task(
         name="my first task",
         description="a description for my task1",
-        start_time=datetime(2023, 12, 24, 17, 32),
+        start_time=datetime(2023, 12, 24, 17, 32, tzinfo=UTC),
         interval=timedelta(minutes=60),
     )
 
@@ -26,7 +26,7 @@ def task2():
     return Task(
         name="my second task",
         description="a description for my task2",
-        start_time=datetime(2023, 12, 25, 17, 32),
+        start_time=datetime(2023, 12, 25, 17, 32, tzinfo=UTC),
         interval=timedelta(minutes=30),
     )
 
@@ -37,7 +37,7 @@ def task3():
     return Task(
         name="my third task",
         description="adding this one #3",
-        start_time=datetime(2023, 12, 25, 17, 5),
+        start_time=datetime(2023, 12, 25, 17, 5, tzinfo=UTC),
         interval=timedelta(minutes=15),
     )
 
@@ -56,11 +56,7 @@ def task4():
 @pytest.fixture(scope="function")
 def action1_t1(task1: Task):
     return Action(
-        datetime(
-            2024,
-            1,
-            1,
-        ),
+        datetime(2024, 1, 1, 0, 0, tzinfo=UTC),
         task1,
         "ran task1 on new year day",
         "me",
@@ -70,13 +66,9 @@ def action1_t1(task1: Task):
 @pytest.fixture(scope="function")
 def action2_t1(task1: Task):
     return Action(
-        datetime(
-            2024,
-            1,
-            2,
-        ),
+        datetime(2024, 1, 2, 6, 0, tzinfo=UTC),
         task1,
-        "ran task1 on the second of the year",
+        "ran task1 on the second of the year, 6 AM",
         "me",
     )
 
@@ -133,7 +125,7 @@ def test_get_task_by_name(task1, task2):
 def test_get_all_tasks_due_period(task1, task2):
     tsk_lst = TaskLister([task1, task2])
 
-    when = datetime(2024, 1, 30, 10, 10)
+    when = datetime(2024, 1, 30, 10, 10, tzinfo=UTC)
 
     # task1 every hour at 32 min
     # task2 every 30 min at 02 min and 32 min
@@ -141,15 +133,27 @@ def test_get_all_tasks_due_period(task1, task2):
     period = timedelta(hours=1)
     return1 = tsk_lst.get_all_tasks_due_period(period, when)
     assert return1 == [
-        (task1, (datetime(2024, 1, 30, 10, 32),)),
-        (task2, (datetime(2024, 1, 30, 10, 32), datetime(2024, 1, 30, 11, 2))),
+        (task1, (datetime(2024, 1, 30, 10, 32, tzinfo=UTC),)),
+        (
+            task2,
+            (
+                datetime(2024, 1, 30, 10, 32, tzinfo=UTC),
+                datetime(2024, 1, 30, 11, 2, tzinfo=UTC),
+            ),
+        ),
     ]
 
     period = timedelta(hours=-1)
     return2 = tsk_lst.get_all_tasks_due_period(period, when)
     assert return2 == [
-        (task1, (datetime(2024, 1, 30, 9, 32),)),
-        (task2, (datetime(2024, 1, 30, 9, 32), datetime(2024, 1, 30, 10, 2))),
+        (task1, (datetime(2024, 1, 30, 9, 32, tzinfo=UTC),)),
+        (
+            task2,
+            (
+                datetime(2024, 1, 30, 9, 32, tzinfo=UTC),
+                datetime(2024, 1, 30, 10, 2, tzinfo=UTC),
+            ),
+        ),
     ]
 
 
@@ -200,17 +204,37 @@ def test_task_lister_collision(task1: Task):
     "task,now_tbu,n,expected_prog_time",
     [
         # see https://engineeringfordatascience.com/posts/pytest_fixtures_with_parameterize/ for fixtures in parametrized test
-        ("task1", datetime(2023, 12, 24, 18, 00), +1, datetime(2023, 12, 24, 18, 32)),
-        ("task1", datetime(2023, 12, 24, 18, 00), -1, datetime(2023, 12, 24, 17, 32)),
-        ("task1", datetime(2023, 12, 24, 18, 00), +3, datetime(2023, 12, 24, 20, 32)),
         (
             "task1",
-            datetime(2023, 12, 24, 18, 00),
+            datetime(2023, 12, 24, 18, 00, tzinfo=UTC),
+            +1,
+            datetime(2023, 12, 24, 18, 32, tzinfo=UTC),
+        ),
+        (
+            "task1",
+            datetime(2023, 12, 24, 18, 00, tzinfo=UTC),
+            -1,
+            datetime(2023, 12, 24, 17, 32, tzinfo=UTC),
+        ),
+        (
+            "task1",
+            datetime(2023, 12, 24, 18, 00, tzinfo=UTC),
+            +3,
+            datetime(2023, 12, 24, 20, 32, tzinfo=UTC),
+        ),
+        (
+            "task1",
+            datetime(2023, 12, 24, 18, 00, tzinfo=UTC),
             -2,
             None,
         ),  # would fall before the start time
-        ("task1", datetime(2024, 6, 10, 18, 00), -5, datetime(2024, 6, 10, 13, 32)),
-        ("task4", datetime(2023, 12, 24, 18, 00), 5, None),
+        (
+            "task1",
+            datetime(2024, 6, 10, 18, 00, tzinfo=UTC),
+            -5,
+            datetime(2024, 6, 10, 13, 32, tzinfo=UTC),
+        ),
+        ("task4", datetime(2023, 12, 24, 18, 00, tzinfo=UTC), 5, None),
     ],
 )
 def test_get_programmed_time(
@@ -231,7 +255,7 @@ def test_get_programmed_time(
 def test_get_next_tasks_due_period__success(task1, task2, task3, task4):
     tsk_lst = TaskLister([task1, task2, task3, task4])
 
-    now_tbu = datetime(2024, 1, 20, 10, 0)
+    when = datetime(2024, 1, 20, 10, 0, tzinfo=UTC)
 
     ret = tsk_lst.get_next_tasks_due_period(timedelta(hours=1), now_tbu)
 
@@ -243,18 +267,18 @@ def test_get_next_tasks_due_period__success(task1, task2, task3, task4):
     assert len(ret) == 3, \
          f"have more tasks than expected, got {len(ret)}, was expecting 3"
     assert ret[0][0] == task1, "issue on task1"
-    assert ret[0][1] == datetime(2024, 1, 20, 10, 32), "issue on task1 next programmed time"
+    assert ret[0][1] == datetime(2024, 1, 20, 10, 32, tzinfo=UTC), "issue on task1 next programmed time"
     assert ret[1][0] == task2, "issue on task2"
-    assert ret[1][1] == datetime(2024, 1, 20, 10, 2), "issue on task2 next programmed time"
+    assert ret[1][1] == datetime(2024, 1, 20, 10, 2, tzinfo=UTC), "issue on task2 next programmed time"
     assert ret[2][0] == task3, "issue on task3"
-    assert ret[2][1] == datetime(2024, 1, 20, 10, 5), "issue on task3 next programmed time"
+    assert ret[2][1] == datetime(2024, 1, 20, 10, 5, tzinfo=UTC), "issue on task3 next programmed time"
     # fmt: on
 
 
 def test_get_next_tasks_due_period__none(task1, task2, task3, task4):
     tsk_lst = TaskLister([task4])
 
-    now_tbu = datetime(2024, 1, 20, 10, 0)
+    now_tbu = datetime(2024, 1, 20, 10, 0, tzinfo=UTC)
 
     ret = tsk_lst.get_next_tasks_due_period(timedelta(hours=1), now_tbu)
     assert ret == []
@@ -263,7 +287,7 @@ def test_get_next_tasks_due_period__none(task1, task2, task3, task4):
 def test_get_next_tasks_due_period__before_start(task1, task2, task3, task4):
     tsk_lst = TaskLister([task1, task2])
 
-    now_tbu = datetime(2022, 1, 20, 10, 0)
+    now_tbu = datetime(2022, 1, 20, 10, 0, tzinfo=UTC)
 
     ret = tsk_lst.get_next_tasks_due_period(timedelta(hours=1), now_tbu)
     assert ret == []
