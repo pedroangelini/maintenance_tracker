@@ -201,7 +201,7 @@ def test_task_lister_collision(task1: Task):
 
 
 @pytest.mark.parametrize(
-    "task,now_tbu,n,expected_prog_time",
+    "task,when,n,expected_prog_time",
     [
         # see https://engineeringfordatascience.com/posts/pytest_fixtures_with_parameterize/ for fixtures in parametrized test
         (
@@ -239,13 +239,13 @@ def test_task_lister_collision(task1: Task):
 )
 def test_get_programmed_time(
     task: str,
-    now_tbu: datetime,
+    when: datetime,
     n: int,
     expected_prog_time: datetime | None,
     request: pytest.FixtureRequest,
 ):
     task_instance = request.getfixturevalue(task)
-    returned_value = task_instance.get_programmed_time(n=n, when=now_tbu)
+    returned_value = task_instance.get_programmed_time(n=n, when=when)
     if expected_prog_time is None:
         assert returned_value is None
     else:
@@ -257,7 +257,7 @@ def test_get_next_tasks_due_period__success(task1, task2, task3, task4):
 
     when = datetime(2024, 1, 20, 10, 0, tzinfo=UTC)
 
-    ret = tsk_lst.get_next_tasks_due_period(timedelta(hours=1), now_tbu)
+    ret = tsk_lst.get_next_tasks_due_period(timedelta(hours=1), when)
 
     # task1 is programmed every hour, at 32 min
     # task2 is programmed every 30 min at 32 and 02 min
