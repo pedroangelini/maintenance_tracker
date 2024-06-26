@@ -3,6 +3,8 @@ from core import *
 from enum import Enum
 from datetime import datetime, timedelta, UTC
 
+logger = logging.getLogger(__name__)
+
 
 class ActionRecordResults(Enum):
     SUCCESS = 1  # all good, and task of this action matches the task already registered
@@ -21,6 +23,9 @@ class MaintenanceTracker:
         self.task_list = TaskLister([])
         self.action_list = ActionLister([])
 
+        logger.debug(
+            f"Initializing tracker: {load =}, {save_dir = }, {save_actions_file = }, {save_task_file = }"
+        )
         self.task_list_saver = TaskListPersister(
             self.task_list, save_dir, save_task_file
         )
@@ -31,6 +36,12 @@ class MaintenanceTracker:
         if load:
             self.task_list_saver.load()
             self.action_list_saver.load()
+            logger.debug(
+                f"loaded tasks from : {Path(self.task_list_saver.dirname) / Path(self.task_list_saver.filename)}"
+            )
+            logger.debug(
+                f"num tasks: {len(self.task_list)}, num actions: {len(self.action_list)}"
+            )
 
     def register_task(self, new_task: Task):
         self.task_list.append(new_task)
@@ -55,7 +66,7 @@ class MaintenanceTracker:
 
         # check if we've seen this task before, if not, register it
         if self.task_list._check_task_name_available(new_action.ref_task.name):
-            logging.info(
+            logger.info(
                 f"adding an action to a task that did not exist before - {new_action.ref_task.name}"
             )
             self.register_task(new_action.ref_task)

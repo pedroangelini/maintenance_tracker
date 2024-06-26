@@ -31,6 +31,8 @@ DEFAULT_SAVE_DIR = "./data"
 DEFAULT_ACTION_LIST_FILE = "action_list.json"
 DEFAULT_TASK_LIST_FILE = "task_list.json"
 
+logger = logging.getLogger(__name__)
+
 
 class Ordering(Enum):
     ASC = 1

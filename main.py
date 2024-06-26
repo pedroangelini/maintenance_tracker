@@ -1,8 +1,15 @@
-# main creates the tracker, deals with configs, and starts the typer app
+import logging
+
+logging.basicConfig(
+    stream=sys.stdout,
+    level=logging.DEBUG,
+    format="%(levelname)s: %(name)s - %(message)s",
+)
 
 import typer
 from cli import *
 
+logger = logging.getLogger(__name__)
 
 app = typer.Typer(
     no_args_is_help=True,
