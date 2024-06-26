@@ -159,7 +159,7 @@ class TaskLister(UserList):
         names = [t.name for t in task_list]
         if len(names) > len(set(names)):
             error_msg = f"Error adding a task to the list: cannot have two tasks with the same name. Got these names'{names}'."
-            logging.debug(error_msg)
+            logger.debug(error_msg)
             raise TaskWithSameNameError(error_msg)
 
         super().__init__(task_list)
@@ -182,7 +182,7 @@ class TaskLister(UserList):
             super().append(new_task)
         else:
             error_msg = f"Error adding a task to the list: cannot have two tasks with the same name. '{new_task.name}' already exist."
-            logging.debug(error_msg)
+            logger.debug(error_msg)
             raise (TaskWithSameNameError(error_msg))
 
     def get_task_by_name(self, target_name: str) -> Task | None:
@@ -362,11 +362,15 @@ class Persister:
         self.obj = persisted_object
 
     def save(self):
+        logger.info(f"writing to {self.save_path}")
         with open(self.save_path, "w", encoding="utf8") as f:
-            json.dump(self.obj.data, f, cls=MtnTrackerJSONEncoder)
+            json.dump(self.obj.data, f, cls=MtnTrackerJSONEncoder, indent=4)
         return self.obj
 
     def load(self):
+        if not self.save_path.exists():
+            self.save()
+
         with open(self.save_path, "r", encoding="utf8") as f:
             loaded_data = json.load(f, cls=MtnTrackerJSONDecoder)
 
@@ -380,7 +384,7 @@ class Persister:
         try:
             os.remove(self.save_path)
         except FileNotFoundError:
-            logging.warning(
+            logger.warning(
                 f"Tried removing file {self.save_path}, but it didn't exist. Will continue."
             )
 

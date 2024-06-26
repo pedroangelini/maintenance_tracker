@@ -67,13 +67,15 @@ _using Typer library_
 mtnt [--verbose] [--config_dir <non-default-dir>]
  |-- add
  |    |-- task
- |    |-- action           # (same as mtntrack record)
+ |    |-- action           # (same as mtnt record)
  |-- record [run]
  |-- list
  |    |-- tasks
  |    |-- actions
  |-- get
+ |    |-- tasks
  |    |-- task
+ |    |-- actions
  |    |-- action
  |-- edit
  |    |-- task
@@ -95,7 +97,7 @@ mtnt [--verbose] [--config_dir <non-default-dir>]
 
 ### Add a task to the list:
 
-`mtntrack add task [-i| --interactive | <task_name> <start_time> <periodicity> <description>]`
+`mtnt add task [-i| --interactive | <task_name> <start_time> <periodicity> <description>]`
 
 | Argument              | Description                                                                                                   |
 | --------------------- | ------------------------------------------------------------------------------------------------------------- |
@@ -107,11 +109,11 @@ mtnt [--verbose] [--config_dir <non-default-dir>]
 
 ### Record the run of a task
 
-`mtntrack record [run] <task_name> [now|<action_timestamp>] <action_name> <actor>`
+`mtnt record [run] <task_name> [now|<action_timestamp>] <action_name> <actor>`
 
 or
 
-`mtntrack add action <task_name> [now|<action_timestamp>] <action_name> <actor>`
+`mtnt add action <task_name> [now|<action_timestamp>] <action_name> <actor>`
 
 | Argument           | Description                           |
 | ------------------ | ------------------------------------- |
@@ -123,13 +125,13 @@ or
 
 ### List tasks
 
-`mtntrack list tasks`
+`mtnt list tasks`
 
 No arguments
 
 ### List actions optionally for a single task
 
-`mtntrack list actions [<task_name>]`
+`mtnt list actions [<task_name>]`
 
 | Argument    | Description          |
 | ----------- | -------------------- |
@@ -137,7 +139,7 @@ No arguments
 
 ### See details of a task
 
-`mtntrack get task <task_name>`
+`mtnt get task <task_name>`
 
 | Argument    | Description          |
 | ----------- | -------------------- |
@@ -147,7 +149,7 @@ No arguments
 
 Prints the action information. If a name or timestamp is provided and there are 2 or more actions that fit the criteria, prints actions and returns error code -10.
 
-`mtntrack get action <task_name> [<action_timestamp>|<action_name>]`
+`mtnt get action <task_name> [<action_timestamp>|<action_name>]`
 
 | Argument           | Description                                                                                   |
 | ------------------ | --------------------------------------------------------------------------------------------- |
@@ -162,7 +164,7 @@ To edit a task name (rename), use the --interactive feature (it will ask for a n
 If neither --interactive or --rename options are given, expects at least a <start_time>, if <periodicity> or description are not give, the command will not change these values. To set `periodicity` to empty, set it to `0` (zero) and to clear the description, set it to `""` (empty string)
 If a name or timestamp is provided and there are 2 or more actions that fit the criteria, asks the user which one to edit.
 
-`mtntrack edit task <task_name> [-i| --interactive | <new_start_time> <new_periodicity> <new_description> | --rename <new_name>]`
+`mtnt edit task <task_name> [-i| --interactive | <new_start_time> <new_periodicity> <new_description> | --rename <new_name>]`
 
 | Argument              | Description                                                                                                   |
 | --------------------- | ------------------------------------------------------------------------------------------------------------- |
@@ -177,7 +179,7 @@ If a name or timestamp is provided and there are 2 or more actions that fit the 
 
 ie: task, timestamp, name, actor
 
-`mtntrack edit action <task_name> [<action_timestamp>|<action_name>] [-i| --interactive | <new_task_name> <new_action_timestamp> <new_actor>]`
+`mtnt edit action <task_name> [<action_timestamp>|<action_name>] [-i| --interactive | <new_task_name> <new_action_timestamp> <new_actor>]`
 
 | Argument               | Description                                                                                                    |
 | ---------------------- | -------------------------------------------------------------------------------------------------------------- |
@@ -191,7 +193,7 @@ ie: task, timestamp, name, actor
 
 ### Delete task
 
-`mtntrack delete task <task_name>`
+`mtnt delete task <task_name>`
 
 | Argument    | Description                             |
 | ----------- | --------------------------------------- |
@@ -201,7 +203,7 @@ ie: task, timestamp, name, actor
 
 Deletes one action at a time. If the name or timestamp can be associated to multiple actions, asks the user which one before proceding.
 
-`mtntrack delete action <task_name> [<action_timestamp>|<action_name>]`
+`mtnt delete action <task_name> [<action_timestamp>|<action_name>]`
 
 | Argument           | Description                                                                |
 | ------------------ | -------------------------------------------------------------------------- |
@@ -213,7 +215,7 @@ Deletes one action at a time. If the name or timestamp can be associated to mult
 
 Check for overdue tasks. A task is considered overdue if between it's last programmed run and now (or optional `at` parameter) there has been no recorded actions
 
-`mtntrack report overdue [--at <timestamp>]`
+`mtnt report overdue [--at <timestamp>]`
 
 | Argument           | Description                                                                    |
 | ------------------ | ------------------------------------------------------------------------------ |
@@ -221,7 +223,7 @@ Check for overdue tasks. A task is considered overdue if between it's last progr
 
 ### See the next run for all tasks
 
-`mtntrack report next [run] [--for <task>] [--at <when>]`
+`mtnt report next [run] [--for <task>] [--at <when>]`
 
 | Argument           | Description                                                                    |
 | ------------------ | ------------------------------------------------------------------------------ |
@@ -232,7 +234,7 @@ Check for overdue tasks. A task is considered overdue if between it's last progr
 
 prints the list of tasks that have programmed runs with the criteria given. Also shows how many runs they have had in the time period and if they are overdue or not at the end of the period
 
-`mtntrack report tasks [--at <partial_timestamp>] [--between <timestamp1> <timestamp2>]`
+`mtnt report tasks [--at <partial_timestamp>] [--between <timestamp1> <timestamp2>]`
 
 | Argument                              | Description                                                                                      |
 | ------------------------------------- | ------------------------------------------------------------------------------------------------ |
@@ -244,7 +246,7 @@ prints the list of tasks that have programmed runs with the criteria given. Also
 
 prints the list of runs that are valid for all criteria passed. If no criteria, prints the list of all runs.
 
-`mtntrack report actions [--at <partial_timestamp>] [--between <timestamp1> <timestamp2>] [--for <task_name>]`
+`mtnt report actions [--at <partial_timestamp>] [--between <timestamp1> <timestamp2>] [--for <task_name>]`
 
 | Argument                              | Description                                                                                      |
 | ------------------------------------- | ------------------------------------------------------------------------------------------------ |

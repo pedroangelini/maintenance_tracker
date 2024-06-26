@@ -17,6 +17,11 @@ class ActionRecordResults(Enum):
 class MaintenanceTracker:
     """maintenance_tracker sets up lists of tasks and actions related to those tasks."""
 
+    task_list: TaskLister
+    action_list: ActionLister
+    task_list_saver: TaskListPersister
+    action_list_saver: ActionListPersister
+
     def __init__(
         self, load=False, save_dir=None, save_actions_file=None, save_task_file=None
     ):
@@ -43,7 +48,7 @@ class MaintenanceTracker:
                 f"num tasks: {len(self.task_list)}, num actions: {len(self.action_list)}"
             )
 
-    def register_task(self, new_task: Task):
+    def register_task(self, new_task: Task) -> None:
         self.task_list.append(new_task)
 
     def record_run(self, new_action: Action) -> ActionRecordResults:
@@ -178,3 +183,7 @@ class MaintenanceTracker:
             return None
         else:
             return when - last_run.timestamp
+
+    def save(self) -> None:
+        self.task_list_saver.save()
+        self.action_list_saver.save()
