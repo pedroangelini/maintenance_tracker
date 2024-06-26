@@ -5,7 +5,8 @@ import rich
 import sys
 from core import *
 from maintenance_tracker import *
-from typing_extensions import Annotated
+
+logger = logging.getLogger(__name__)
 
 
 add_app = typer.Typer(
