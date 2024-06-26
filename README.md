@@ -25,7 +25,19 @@ The record of a task being executed. It has:
 
 ## Storage
 
-Data is stored in ~/.mtntrack/ folder, as JSON files. These files can be directly edited, although the app will not check for consistency and weird behavior can happen if the files are corrupted. To back up the files, simply copy or synchronize the folder to your backup location.
+Data and configurations are stored in the default app folder for your platform (in windows it defaults to `C:\Users\<username>\AppData\Roaming\mtnt`), as JSON files. These files can be directly edited, although the app will not check for consistency and weird behavior can happen if the files are corrupted. To back up the files, simply copy or synchronize the folder to your backup location.
+
+A different configuration folder can be passed using the option --config_dir
+
+## Configuration
+
+Configurations are saved in the file `mtnt_config.json`
+
+Available configurations
+| Config Entry | Default Value | Description |
+|---------------|:-------------:|-------------|
+| data_dir | '.' | The directory to save data. If this is a relative directory, it will be based on the config_dir |
+| debug_logging | false | If true, enables even more console messages than the --verbose option |
 
 ### Date & time formats
 
@@ -52,7 +64,7 @@ _using Typer library_
 ### Summary of commands & Subcommands
 
 ```
-mtntrack
+mtnt [--verbose] [--config_dir <non-default-dir>]
  |-- add
  |    |-- task
  |    |-- action           # (same as mtntrack record)
@@ -75,6 +87,11 @@ mtntrack
       |-- tasks
       |-- actions
 ```
+
+### Global Options
+
+- `--verbose` - show info logs
+- `--config_dir` - sets a different configuration directory
 
 ### Add a task to the list:
 
