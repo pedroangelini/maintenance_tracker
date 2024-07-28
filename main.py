@@ -7,7 +7,7 @@ import logging
 
 logging.basicConfig(
     stream=sys.stdout,
-    level=logging.DEBUG,
+    level=logging.WARN,
     format="%(levelname)s: %(name)s - %(message)s",
 )
 
