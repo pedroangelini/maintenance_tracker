@@ -22,10 +22,12 @@ from abc import ABC, abstractmethod
 from collections import UserList
 from copy import deepcopy
 from dataclasses import asdict, dataclass, is_dataclass
-from datetime import datetime, timedelta, UTC, timezone
+from datetime import UTC, datetime, timedelta, timezone
 from enum import Enum
 from pathlib import Path
-from typing import Any, Sequence
+from typing import Any, Optional, Sequence
+
+import utils
 
 DEFAULT_SAVE_DIR = "./data"
 DEFAULT_ACTION_LIST_FILE = "action_list.json"
@@ -41,10 +43,14 @@ class Ordering(Enum):
 
 @dataclass(frozen=True)
 class Task:
-    name: str = "default_task"
+    name: Optional[str] = "default_task"
     description: str = "No description provided"
     start_time: datetime | None = None
     interval: timedelta | None = timedelta(seconds=0)
+
+    def __post_init__(self):
+        if self.name is None or not self.name:
+            raise (ValueError("Task name cannot be None or empty string"))
 
     def copy(self):
         return deepcopy(self)
@@ -137,6 +143,15 @@ class Task:
 
         return ret_list
 
+    def __str__(self) -> str:
+        ret_str = f"Task: {self.name}\n"
+        if self.description:
+            ret_str += f"{self.description}\n"
+        ret_str += f"starting on: {utils.human_date_str(self.start_time)}\n"
+        ret_str += f"interval: {utils.human_interval_str(self.interval)}\n"
+
+        return ret_str
+
 
 @dataclass(frozen=True)
 class Action:
@@ -164,7 +179,13 @@ class TaskLister(UserList):
 
         super().__init__(task_list)
 
-    def _check_task_name_available(self, target_task_name: str) -> bool:
+    def _check_task_name_available(self, target_task_name: Optional[str]) -> bool:
+        if target_task_name is None:
+            raise (
+                ValueError(
+                    "Task name passed as None, should not have arrived to this point in the program"
+                )
+            )
         for t in self.data:
             if t.name == target_task_name:
                 return False

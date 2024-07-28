@@ -104,7 +104,7 @@ mtnt [--verbose] [--config_dir <non-default-dir>]
 | `-i`, `--interactive` | CLI will prompt for the parameters that were not passed. If no other arguments are passed, CLI will assume -i |
 | `task_name`           | The name of the task                                                                                          |
 | `start_time`          | Date time of the start                                                                                        |
-| `periodicity`         | How often should the task repeat                                                                              |
+| `interval`            | How long between task repeats                                                                                 |
 | `description`         | A free text description for the task                                                                          |
 
 ### Record the run of a task

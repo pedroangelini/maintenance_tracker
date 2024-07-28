@@ -6,6 +6,7 @@ name = "pypi"
 [packages]
 typer = {extras = ["all"], version = "*"}
 dateparser = "*"
+human-readable = "*"
 
 [dev-packages]
 ipython = "*"

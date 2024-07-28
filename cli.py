@@ -34,12 +34,29 @@ report_app = typer.Typer(no_args_is_help=True, help="creates reports")
     no_args_is_help=True,
 )
 def add_task(
-    name: str,
+    name: Annotated[
+        Optional[str],
+        typer.Argument(help="name of the task (required)", show_default=False),
+    ] = None,
     start_time: Annotated[str, typer.Argument()] = "now",
     interval: Annotated[str, typer.Argument()] = "",
-    description: str = "",
+    description: Annotated[str, typer.Argument()] = "",
+    interactive: Annotated[
+        bool, typer.Option("-i", help="asks for each argument in turn")
+    ] = False,
 ):
     """Adds a task to the tracker"""
+    if interactive:
+        logger.info("interactively adding a task")
+        if name is None:
+            name = typer.prompt("Task Name", type=str, default="default task")
+        if start_time == "now":
+            start_time = typer.prompt("Task Start Time", type=str, default="now")
+        if interval == "":
+            interval = typer.prompt("Task Interval", type=str, default="")
+        if description == "":
+            description = typer.prompt("Task Description", type=str, default="")
+
     logger.info(f"Adding task: {name}")
     logger.info(f"{start_time = }")
     logger.info(f"{interval = }")
@@ -49,6 +66,7 @@ def add_task(
         name, description, utils.parse_date(start_time), utils.parse_interval(interval)
     )
     app.register_task(t)
+    rich.print(f":checkmark: [green]Successfully created task {t}")
 
 
 @add_app.command("action")
