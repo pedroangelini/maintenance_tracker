@@ -11,14 +11,33 @@ class IntervalParseError(ValueError):
     pass
 
 
+def _round_datetime(precise_datetime: datetime) -> datetime:
+    "rounds datetime to the nearest minute"
+    return datetime(
+        year=precise_datetime.year,
+        month=precise_datetime.month,
+        day=precise_datetime.day,
+        hour=precise_datetime.hour,
+        minute=round(precise_datetime.minute + precise_datetime.second / 60),
+        tzinfo=precise_datetime.tzinfo,
+    )
+
+
 def parse_date(input: str) -> datetime:
-    parsed = dateparser.parse(input, settings={"RETURN_AS_TIMEZONE_AWARE": True})
+    parsed = dateparser.parse(
+        input,
+        settings={"RETURN_AS_TIMEZONE_AWARE": True, "PREFER_DATES_FROM": "future"},
+    )
     if parsed is None:
         raise DateParseError(f"Could not parse date '{input}'")
-    return parsed
+    return _round_datetime(parsed)
 
 
 def _round_interval(precise_interval: timedelta) -> timedelta:
+    """rounds timedelta to the nearest minute, except if an
+    interval smaller than 1 min was given, in which case rounds to the
+    nearest second
+    """
     secs = precise_interval.total_seconds()
     if secs < 60:  # less than a minute, round to the closest second
         return timedelta(seconds=round(secs))
@@ -50,7 +69,7 @@ def parse_interval(input: str) -> timedelta:
     if parsed is None:
         raise IntervalParseError(f"Could not parse interval '{input}'")
 
-    # because we take now and parsed at slightly different times (miliseconds),
+    # because we take now and parsed at slightly different times (milliseconds),
     return _round_interval(parsed - now)
 
 
@@ -68,11 +87,8 @@ def human_date_str(input: datetime | None, when_now: datetime | None = None) -> 
 def human_interval_str(
     input: timedelta | None, when_now: datetime | None = None
 ) -> str:
+
     if input is None:
         return "no interval provided"
-    if when_now is None:
-        when_now = datetime.now(tz=UTC)
-    if input < timedelta(days=1):
-        return human_readable.date_time(input, future=True)
-    else:
-        return human_readable.date_time(input, future=True)
+    ret = human_readable.precise_delta(input)
+    return ret

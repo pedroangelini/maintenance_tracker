@@ -29,6 +29,26 @@ delete_app = typer.Typer(no_args_is_help=True, help="deletes a Task or Action")
 report_app = typer.Typer(no_args_is_help=True, help="creates reports")
 
 
+def _print_task_list_table(task_list: TaskLister) -> None:
+    table = rich.table.Table(title="Task List")
+
+    table.add_column("Name", justify="left", no_wrap=True)
+    table.add_column("Description")
+    table.add_column("Start Time", justify="right", style="green")
+    table.add_column("Interval", justify="right", style="green")
+
+    for t in task_list:
+        table.add_row(
+            t.name,
+            t.description,
+            utils.human_date_str(t.start_time),
+            utils.human_interval_str(t.interval),
+        )
+
+    console = rich.console.Console()
+    console.print(table)
+
+
 @add_app.command(
     "task",
     no_args_is_help=True,
@@ -78,8 +98,10 @@ def record():
     print("record command!")
 
 
+@list_app.command("tasks", help="Prints a list of task")
 def list():
-    print("list command!")
+    task_list = app.get_all_tasks()
+    _print_task_list_table(task_list)
 
 
 @get_app.command(
