@@ -58,7 +58,7 @@ def parse_interval(input: str) -> timedelta:
     Returns:
         timedelta: rounded timedelta
     """
-    if not input:
+    if not input or input == "0":
         return timedelta(seconds=0)
 
     now = datetime.now(UTC)
@@ -79,7 +79,10 @@ def human_date_str(input: datetime | None, when_now: datetime | None = None) -> 
     if when_now is None:
         when_now = datetime.now(tz=UTC)
     if abs(input - when_now) < timedelta(days=1):
-        return human_readable.date_time(input, minimum_unit="minutes")
+        return human_readable.date_time(
+            input.replace(tzinfo=None),  # timezone hack so the human_readable works
+            minimum_unit="seconds",
+        )
     else:
         return human_readable.date(input.date())
 

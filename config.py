@@ -48,6 +48,7 @@ class Configuration:
                 f"could not find file, saving default config {self.saved_configs = }"
             )
             try:
+                config_file_path.parent.mkdir(parents=True, exist_ok=True)
                 with config_file_path.open("w", encoding="utf8") as conf_fp:
                     json.dump(
                         obj=self.saved_configs,
