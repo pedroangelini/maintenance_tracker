@@ -63,27 +63,31 @@ _using Typer library_
 
 ### Summary of commands & Subcommands
 
+- ✔️ functionality is build
+- ⚒️ work in progress
+- ❌ not started
+
 ```
 mtnt [--verbose] [--config_dir <non-default-dir>]
- |-- add
- |    |-- task
- |    |-- action           # (same as mtnt record)
- |-- record [run]
- |-- list
- |    |-- tasks
- |    |-- actions
- |-- get
- |    |-- tasks
- |    |-- task
- |    |-- actions
- |    |-- action
- |-- edit
- |    |-- task
- |    |-- action
- |-- delete
+ |-- ⚒️ add
+ |    |-- ✔️ task
+ |    |-- ❌ action           # (same as mtnt record)
+ |-- ❌ record [run]
+ |-- ⚒️ list
+ |    |-- ✔️ tasks
+ |    |-- ❌ actions
+ |-- ⚒️ get
+ |    |-- ✔️ tasks
+ |    |-- ✔️ task
+ |    |-- ❌ actions
+ |    |-- ❌ action
+ |-- ❌ edit
  |    |-- task
  |    |-- action
- |-- report
+ |-- ❌ delete
+ |    |-- task
+ |    |-- action
+ |-- ❌ report
       |-- overdue
       |-- next [run]
       |-- tasks
@@ -255,8 +259,10 @@ prints the list of runs that are valid for all criteria passed. If no criteria, 
 | `--between <timestamp1> <timestamp2>` | list actions between 2 timestamps                                                                |
 | `--for <task_name>`                   | name of task to filter the output                                                                |
 
-## Error (Return) Codes
+## Return Codes
 
+- 0: all good
+- 1: something went wrong
 - -1: multiple actions selected where expecting only one
 
 ## Future Improvements
