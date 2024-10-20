@@ -2,8 +2,10 @@
 # (add, edit, list, etc) and saves it the tracker
 
 
-from maintenance_tracker import MaintenanceTracker, Task, Action, TaskLister
+from datetime import datetime
 import logging
+
+from maintenance_tracker import Action, MaintenanceTracker, Task, TaskLister
 
 # log config
 logger = logging.getLogger(__name__)
@@ -28,6 +30,22 @@ def get_task_by_name(task_name: str) -> Task | None:
     logger.debug(tracker)
     logger.info(f"getting task named {task_name}")
     return tracker.task_list.get_task_by_name(task_name)
+
+
+def get_tasks_by_name(search_string: str) -> TaskLister:
+    global tracker
+    ret_list = TaskLister()
+    logger.info(f"getting task named {search_string}")
+    for task in tracker.task_list:
+        if search_string in task.name:
+            ret_list.append(task)
+    return ret_list
+
+
+def get_tasks_by_time(
+    start_time: datetime, end_time: datetime | None = None
+) -> TaskLister:
+    pass
 
 
 def get_all_tasks() -> TaskLister:

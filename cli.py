@@ -15,6 +15,7 @@ from maintenance_tracker import *
 
 logger = logging.getLogger(__name__)
 
+GENERIC_FAIL_CODE = 1
 
 add_app = typer.Typer(
     no_args_is_help=True, help="adds a Task or an Action to the tracker"
@@ -27,6 +28,19 @@ get_app = typer.Typer(no_args_is_help=True, help="gets details of a Task or Acti
 edit_app = typer.Typer(no_args_is_help=True, help="edits a Task or Action")
 delete_app = typer.Typer(no_args_is_help=True, help="deletes a Task or Action")
 report_app = typer.Typer(no_args_is_help=True, help="creates reports")
+
+########################################
+# Helper functions
+########################################
+
+
+def _rich_task(t: Task) -> str:
+    ret_str = f"Task: [bold]{t.name}[/bold]\n"
+    if t.description:
+        ret_str += f"[italic]{t.description}[/italic]\n"
+    ret_str += f"starting on: {utils.human_date_str(t.start_time)}\n"
+    ret_str += f"interval:    {utils.human_interval_str(t.interval)}\n"
+    return ret_str
 
 
 def _print_task_list_table(task_list: TaskLister) -> None:
@@ -47,6 +61,11 @@ def _print_task_list_table(task_list: TaskLister) -> None:
 
     console = rich.console.Console()
     console.print(table)
+
+
+########################################
+# add app
+########################################
 
 
 @add_app.command(
@@ -82,11 +101,18 @@ def add_task(
     logger.info(f"{interval = }")
     logger.info(f"{description = }")
 
-    t = Task(
-        name, description, utils.parse_date(start_time), utils.parse_interval(interval)
-    )
-    app.register_task(t)
-    rich.print(f":checkmark: [green]Successfully created task {t}")
+    try:
+        t = Task(
+            name,
+            description,
+            utils.parse_date(start_time),
+            utils.parse_interval(interval),
+        )
+        app.register_task(t)
+        rich.print(f":heavy_check_mark: [green]Successfully created task[/green]\n{t}")
+    except Exception as e:
+        rich.print(f":x: [red]:something went wrong:[/red]\n{str(e)}")
+        typer.Exit(code=GENERIC_FAIL_CODE)
 
 
 @add_app.command("action")
@@ -94,14 +120,29 @@ def add_action():
     print("add task command!")
 
 
+########################################
+# record app
+########################################
+
+
 def record():
     print("record command!")
+
+
+########################################
+# list app
+########################################
 
 
 @list_app.command("tasks", help="Prints a list of task")
 def list():
     task_list = app.get_all_tasks()
     _print_task_list_table(task_list)
+
+
+########################################
+# get app
+########################################
 
 
 @get_app.command(
@@ -114,32 +155,54 @@ def get_tasks(
 ):
     """get all tasks based on either a name or a time interval"""
 
-    if name == "" and interval == "":
+    if not name and not interval:
         task_list = app.get_all_tasks()
-        for t in task_list:
-            print(t)
     elif name is not None:
-        print(app.get_task_by_name(name))
+        print(name)
+        task_list = app.get_tasks_by_name(name)
     else:
-        print("oh no!")
+        task_list = app.get_tasks_by_time()
+
+    rich.print(f"found {len(task_list)} tasks")
+    for t in task_list:
+        rich.print(_rich_task(t))
 
 
 @get_app.command(
     "task",
-    # no_args_is_help=True,
+    no_args_is_help=True,
 )
 def get_task(name: Annotated[str, typer.Argument()]):
     """get tasks by name"""
-    print(app.get_task_by_name(name))
+    t = _rich_task(app.get_task_by_name(name))
+    rich.print(t)
+
+
+########################################
+# edit app
+########################################
 
 
 def edit():
     print("edit command!")
 
 
+########################################
+# delete app
+########################################
+
+
 def delete():
     print("delete command!")
 
+
+########################################
+# report app
+########################################
+
+########################################
+# footer
+########################################
 
 if __name__ == "__main__":
     rich.print("[red]please run the main file[/red]", file=sys.stderr)
