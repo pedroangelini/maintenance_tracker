@@ -183,8 +183,65 @@ def get_task(name: Annotated[str, typer.Argument()]):
 ########################################
 
 
-def edit():
-    print("edit command!")
+@edit_app.command(
+    "task",
+    no_args_is_help=True,
+)
+@edit_app.command("task")
+def edit_task(
+    task_name: Annotated[str, typer.Argument(help="name of the task to edit")],
+    new_start_time: Annotated[
+        Optional[str], typer.Argument(help="new start time for the task")
+    ] = None,
+    new_periodicity: Annotated[
+        Optional[str], typer.Argument(help="new periodicity for the task")
+    ] = None,
+    new_description: Annotated[
+        Optional[str], typer.Argument(help="new description for the task")
+    ] = None,
+    rename: Annotated[
+        Optional[str], typer.Option("--rename", help="new name for the task")
+    ] = None,
+    interactive: Annotated[
+        bool, typer.Option("-i", "--interactive", help="edit task interactively")
+    ] = False,
+):
+    """Edits a task in the tracker"""
+    task = app.get_task_by_name(task_name)
+    if task is None:
+        rich.print(f":x: [red]Task '{task_name}' not found[/red]")
+        typer.Exit(code=GENERIC_FAIL_CODE)
+
+    if interactive:
+        logger.info("interactively editing task")
+        if new_start_time is None:
+            new_start_time = typer.prompt(
+                "New Start Time", type=str, default=task.start_time
+            )
+        if new_periodicity is None:
+            new_periodicity = typer.prompt(
+                "New Periodicity", type=str, default=task.interval
+            )
+        if new_description is None:
+            new_description = typer.prompt(
+                "New Description", type=str, default=task.description
+            )
+        if rename is None:
+            rename = typer.prompt("New Name", type=str, default=task.name)
+
+    if rename:
+        task.name = rename
+    if new_start_time:
+        task.start_time = utils.parse_date(new_start_time)
+    if new_periodicity:
+        task.interval = utils.parse_interval(new_periodicity)
+    if new_description:
+        task.description = new_description
+
+    app.update_task(task)
+    rich.print(
+        f":heavy_check_mark: [green]Task '{task_name}' updated successfully[/green]\n{task}"
+    )
 
 
 ########################################
