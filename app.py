@@ -2,7 +2,7 @@
 # (add, edit, list, etc) and saves it the tracker
 
 
-from datetime import datetime
+from datetime import datetime, timedelta
 import logging
 
 from maintenance_tracker import Action, MaintenanceTracker, Task, TaskLister
@@ -55,3 +55,19 @@ def get_all_tasks() -> TaskLister:
     logger.info(f"getting all tasks")
     logger.info(f"found {len(tracker.task_list)} tasks")
     return tracker.task_list
+
+
+def edit_task(
+    task: Task,
+    new_name: str,
+    new_description: str,
+    new_start_time: datetime,
+    new_interval: timedelta,
+) -> bool:
+    global tracker
+    logger.debug(f"task before edit: {task}")
+    task.name: Optional[str] = "default_task"
+    description: str = "No description provided"
+    start_time: datetime | None = None
+    interval: timedelta | None = timedelta(seconds=0)
+    return
