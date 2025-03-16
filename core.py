@@ -16,6 +16,9 @@
 #
 # - maintenance_tracker: compares tasks and actions to check which are due, overdue, etc
 
+from __future__ import annotations
+
+import dataclasses
 import json
 import logging  # debug(), info(), warning(), error() and critical()
 from abc import ABC, abstractmethod
@@ -54,6 +57,9 @@ class Task:
 
     def copy(self):
         return deepcopy(self)
+    
+    def replace(self, changes: dict) -> Task:
+        return dataclasses.replace(self, **changes)
 
     def get_programmed_time(self, n=1, when: datetime | None = None) -> datetime | None:
         """Gets the nth next programmed time for the task. n can be negative, in which case
@@ -163,7 +169,9 @@ class Action:
 
     def copy(self):
         return deepcopy(self)
-
+    
+    def replace(self, changes: dict) -> Action:
+        return dataclasses.replace(self, **changes)
 
 class TaskWithSameNameError(KeyError):
     pass

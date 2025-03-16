@@ -2,10 +2,12 @@
 # (add, edit, list, etc) and saves it the tracker
 
 
-from datetime import datetime, timedelta
 import logging
+from datetime import datetime, timedelta
+from typing import Optional
 
-from maintenance_tracker import Action, MaintenanceTracker, Task, TaskLister
+
+from maintenance_tracker import Action, MaintenanceTracker, Task, TaskLister, ActionRecordResults, TaskRecordResults
 
 # log config
 logger = logging.getLogger(__name__)
@@ -58,16 +60,34 @@ def get_all_tasks() -> TaskLister:
 
 
 def edit_task(
-    task: Task,
-    new_name: str,
-    new_description: str,
-    new_start_time: datetime,
-    new_interval: timedelta,
-) -> bool:
+    old_task : Task,
+    changes: dict,
+) -> Task:
     global tracker
-    logger.debug(f"task before edit: {task}")
-    task.name: Optional[str] = "default_task"
-    description: str = "No description provided"
-    start_time: datetime | None = None
-    interval: timedelta | None = timedelta(seconds=0)
-    return
+    logger.debug(f"replacing old task: {old_task.name} (id: {id(old_task)})")
+    new_task = old_task.replace(changes)
+    logger.debug(f"with new task: {new_task.name} (id: {id(new_task)})")
+
+    tracker.register_task(new_task)
+
+    
+    actions = tracker.get_actions_for_task(old_task)
+    logger.debug(f"updating {len(actions)} actions to point to new task")
+    for action in actions:
+        new_action = action.replace({"ref_task":new_task})
+        tracker.record_run(new_action)
+        tracker.delete_run(action)
+        logger.debug(f"updated {new_action.timestamp}")
+
+
+
+    logger.debug("deleting old task")
+    if tracker.delete_task(old_task) != TaskRecordResults.SUCCESS:
+        logger.fatal("error editing (replacing) task - could not move the old actions to the new task")
+        return None
+
+
+    tracker.save()
+    
+    return new_task
+

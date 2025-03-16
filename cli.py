@@ -112,7 +112,7 @@ def add_task(
         rich.print(f":heavy_check_mark: [green]Successfully created task[/green]\n{t}")
     except Exception as e:
         rich.print(f":x: [red]:something went wrong:[/red]\n{str(e)}")
-        typer.Exit(code=GENERIC_FAIL_CODE)
+        raise typer.Exit(code=GENERIC_FAIL_CODE)
 
 
 @add_app.command("action")
@@ -187,7 +187,6 @@ def get_task(name: Annotated[str, typer.Argument()]):
     "task",
     no_args_is_help=True,
 )
-@edit_app.command("task")
 def edit_task(
     task_name: Annotated[str, typer.Argument(help="name of the task to edit")],
     new_start_time: Annotated[
@@ -207,41 +206,54 @@ def edit_task(
     ] = False,
 ):
     """Edits a task in the tracker"""
-    task = app.get_task_by_name(task_name)
-    if task is None:
+    original_task = app.get_task_by_name(task_name)
+
+
+    if original_task is None:
         rich.print(f":x: [red]Task '{task_name}' not found[/red]")
-        typer.Exit(code=GENERIC_FAIL_CODE)
+        raise typer.Exit(code=GENERIC_FAIL_CODE)
 
     if interactive:
         logger.info("interactively editing task")
         if new_start_time is None:
             new_start_time = typer.prompt(
-                "New Start Time", type=str, default=task.start_time
+                "New Start Time", type=str, default=original_task.start_time
             )
         if new_periodicity is None:
             new_periodicity = typer.prompt(
-                "New Periodicity", type=str, default=task.interval
+                "New Periodicity", type=str, default=original_task.interval
             )
         if new_description is None:
             new_description = typer.prompt(
-                "New Description", type=str, default=task.description
+                "New Description", type=str, default=original_task.description
             )
         if rename is None:
-            rename = typer.prompt("New Name", type=str, default=task.name)
+            rename = typer.prompt("New Name", type=str, default=original_task.name)
+
+    changes: dict = dict()
 
     if rename:
-        task.name = rename
+        changes["name"] = rename
     if new_start_time:
-        task.start_time = utils.parse_date(new_start_time)
+        changes["start_time"] = utils.parse_date(new_start_time)
     if new_periodicity:
-        task.interval = utils.parse_interval(new_periodicity)
+        changes["interval"] = utils.parse_interval(new_periodicity)
     if new_description:
-        task.description = new_description
+        changes["description"] = new_description
 
-    app.update_task(task)
-    rich.print(
-        f":heavy_check_mark: [green]Task '{task_name}' updated successfully[/green]\n{task}"
-    )
+    new_task = app.edit_task(original_task, changes)
+    
+
+    if new_task is not None:
+        rich.print(
+            f":heavy_check_mark: [green]Task '{task_name}' updated successfully[/green]\n{new_task}"
+        )
+    else: 
+        rich.print(
+            f":cross_mark: [red]Could not update '{task_name}'[/red]\n"
+        )
+        raise typer.Exit(code=GENERIC_FAIL_CODE)
+        
 
 
 ########################################

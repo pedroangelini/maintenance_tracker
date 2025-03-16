@@ -40,11 +40,12 @@ typer_app.add_typer(report_app, name="report")
 def main(
     verbose: bool = False,
     config_dir: Annotated[
-        str, typer.Option(help="directory to store configs")
+        Optional[str], typer.Option(help="directory to store configs")
     ] = typer.get_app_dir(APP_NAME),
 ):
     "mtnt: a simple cli maintenance tracker for your repetitive tasks"
     global config
+
 
     config.init_config(config_dir=config_dir, verbose=verbose)
 

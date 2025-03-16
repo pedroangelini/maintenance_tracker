@@ -81,8 +81,8 @@ mtnt [--verbose] [--config_dir <non-default-dir>]
  |    |-- ✔️ task
  |    |-- ❌ actions
  |    |-- ❌ action
- |-- ❌ edit
- |    |-- task
+ |-- ⚒️ edit
+ |    |-- ✔️ task
  |    |-- action
  |-- ❌ delete
  |    |-- task

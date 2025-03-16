@@ -13,6 +13,10 @@ class ActionRecordResults(Enum):
         0  # for some reason we couldn't add the task, but did not raise an exception
     )
 
+class TaskRecordResults(Enum):
+    SUCCESS = 1  # all good, and task of this action matches the task already registered
+    FAILURE = 0  # for some reason we couldn't add the task, but did not raise an exception
+
 
 class MaintenanceTracker:
     """maintenance_tracker sets up lists of tasks and actions related to those tasks."""
@@ -48,8 +52,9 @@ class MaintenanceTracker:
                 f"num tasks: {len(self.task_list)}, num actions: {len(self.action_list)}"
             )
 
-    def register_task(self, new_task: Task) -> None:
+    def register_task(self, new_task: Task) -> TaskRecordResults:
         self.task_list.append(new_task)
+        return TaskRecordResults.SUCCESS
 
     def record_run(self, new_action: Action) -> ActionRecordResults:
         """Records that an action was performed,
@@ -183,6 +188,39 @@ class MaintenanceTracker:
             return None
         else:
             return when - last_run.timestamp
+
+    def delete_task(self, task: Task) -> TaskRecordResults:
+        """Deletes a task from the tracker, checking first to see if it has any actions depending on it
+
+        Args:
+            task (Task): the task to be deleted
+
+        Returns:
+            TaskRecordResults: SUCCESS or FAILURE depending on wether the task had actions attached to it
+        """
+        logger.debug(f"deleting task {task.name}")
+        if dangling_actions := self.get_actions_for_task(task):
+            logger.error(f"cannot delete task {task} because it has actions that depend on it")
+            logger.debug(f"dangling actions: {dangling_actions}")
+            return TaskRecordResults.FAILURE
+        
+        self.task_list.remove(task)
+        return TaskRecordResults.SUCCESS
+
+    def delete_run(self, action: Action) -> ActionRecordResults:
+        """Deletes an action from the tracker
+
+        Args:
+            action (Task): the action to be deleted
+
+        Returns:
+            TaskRecordResults: only returns SUCCESS (otherwise fails ungracefully for now)
+        """
+        logger.debug(f"deleting action {action.ref_task.name}: {action.timestamp}")
+        
+        self.action_list.remove(action)
+        return ActionRecordResults.SUCCESS
+
 
     def save(self) -> None:
         self.task_list_saver.save()
