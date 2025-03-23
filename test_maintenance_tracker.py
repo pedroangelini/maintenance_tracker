@@ -158,7 +158,3 @@ def test_check_overdue_only_as_action_after_when(task1):
     mtnt.record_run(future_action)
 
     assert mtnt.check_overdue(task1, when=when) == True
-
-
-if __name__ == "__main__":
-    pass

@@ -24,6 +24,7 @@ def _round_datetime(precise_datetime: datetime) -> datetime:
 
 
 def parse_date(input: str) -> datetime:
+
     parsed = dateparser.parse(
         input,
         settings={"RETURN_AS_TIMEZONE_AWARE": True, "PREFER_DATES_FROM": "future"},
@@ -64,7 +65,11 @@ def parse_interval(input: str) -> timedelta:
     now = datetime.now(UTC)
     parsed = dateparser.parse(
         input,
-        settings={"RETURN_AS_TIMEZONE_AWARE": True, "PREFER_DATES_FROM": "future"},
+        settings={
+            "RETURN_AS_TIMEZONE_AWARE": True,
+            "TIMEZONE": "UTC",  # set as UTC to ensure it's consistent with "now"
+            "PREFER_DATES_FROM": "future",
+        },
     )
     if parsed is None:
         raise IntervalParseError(f"Could not parse interval '{input}'")
@@ -73,18 +78,24 @@ def parse_interval(input: str) -> timedelta:
     return _round_interval(parsed - now)
 
 
-def human_date_str(input: datetime | None, when_now: datetime | None = None) -> str:
+def human_date_str(input: datetime | None) -> str:
+    """Returns a human readable string representing the date
+
+    Args:
+        input (datetime | None): the datetime in question
+
+    Returns:
+        str: a human-readable version of the date time, such as "x hours from now"
+    """
     if input is None:
         return "no date provided"
-    if when_now is None:
-        when_now = datetime.now(tz=UTC)
-    if abs(input - when_now) < timedelta(days=1):
+    if abs(input - datetime.now().astimezone()) <= timedelta(days=1):
         return human_readable.date_time(
             input.replace(tzinfo=None),  # timezone hack so the human_readable works
-            minimum_unit="seconds",
+            minimum_unit="SECONDS",
         )
     else:
-        return human_readable.date(input.date())
+        return human_readable.date(input.date() + timedelta(milliseconds=1))
 
 
 def human_interval_str(

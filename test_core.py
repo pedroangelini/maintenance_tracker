@@ -291,7 +291,3 @@ def test_get_next_tasks_due_period__before_start(task1, task2, task3, task4):
 
     ret = tsk_lst.get_next_tasks_due_period(timedelta(hours=1), now_tbu)
     assert ret == []
-
-
-if __name__ == "__main__":
-    pass
