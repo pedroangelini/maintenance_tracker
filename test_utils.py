@@ -177,15 +177,16 @@ def test_parse_interval_raises(
             "now",
         ),
         (
-            datetime.today().astimezone() - timedelta(days=1),
-            "23 hours ago",
+            # datetime.today().astimezone() - timedelta(days=1),
+            datetime(2025, 3, 23, 19, 14, 0).astimezone() - timedelta(days=1),
+            "a day ago",
         ),
         (
-            datetime.today().astimezone() + timedelta(days=1),
-            "tomorrow",
+            datetime(2025, 3, 23, 19, 14, 0).astimezone() + timedelta(days=1),
+            "a day from now",
         ),
         (
-            datetime.today().astimezone() + timedelta(hours=5),
+            datetime(2025, 3, 23, 19, 14, 0).astimezone() + timedelta(hours=5),
             "5 hours from now",
         ),
     ],
