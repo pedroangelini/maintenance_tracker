@@ -303,8 +303,47 @@ def edit_task(
 ########################################
 
 
-def delete():
-    print("delete command!")
+@delete_app.command("task")
+def delete_task(
+    task_name: Annotated[str, typer.Argument(help="name of the task to delete")],
+):
+    """Deletes a task."""
+    result = app.delete_task(task_name)
+    if result == TaskRecordResults.SUCCESS:
+        rich.print(f":heavy_check_mark: [green]Successfully deleted task '{task_name}'[/green]")
+    else:
+        rich.print(f":x: [red]Could not delete task '{task_name}'. It might not exist or have actions that depend on it.[/red]")
+        raise typer.Exit(code=GENERIC_FAIL_CODE)
+
+
+@delete_app.command("action")
+def delete_action(
+    task_name: Annotated[str, typer.Argument(help="name of the task of the action to delete")],
+    start_time: Annotated[
+        Optional[str], typer.Option(help="start time of the actions to delete")
+    ] = None,
+    end_time: Annotated[
+        Optional[str], typer.Option(help="end time of the actions to delete")
+    ] = None,
+    action_name: Annotated[
+        Optional[str], typer.Option(help="name of the action to delete")
+    ] = None,
+):
+    """Deletes one or more actions."""
+    if not start_time and not end_time and not action_name:
+        rich.print("No action to delete. Please provide a time range or an action name.")
+        raise typer.Exit()
+
+    start = utils.parse_date(start_time) if start_time else None
+    end = utils.parse_date(end_time) if end_time else None
+
+    deleted_count = app.delete_action(task_name, start, end, action_name)
+
+    if deleted_count > 0:
+        rich.print(f":heavy_check_mark: [green]Successfully deleted {deleted_count} action(s) for task '{task_name}'[/green]")
+    else:
+        rich.print(f":x: [red]No actions were deleted for task '{task_name}'. They might not exist or the provided criteria didn't match.[/red]")
+
 
 
 ########################################

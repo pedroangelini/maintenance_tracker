@@ -98,6 +98,43 @@ def edit_task(
     
     return new_task
 
+def get_actions_for_task_filtered(
+    task_name: str,
+    start_time: datetime | None = None,
+    end_time: datetime | None = None,
+    action_name: str | None = None,
+) -> ActionLister:
+    global tracker
+    task = get_task_by_name(task_name)
+    if task is None:
+        return ActionLister([])
+
+    actions = tracker.get_actions_for_task(task)
+    filtered_actions = ActionLister()
+
+    if action_name:
+        for action in actions:
+            if action.name == action_name:
+                filtered_actions.append(action)
+        return filtered_actions
+
+    start = start_time
+    end = end_time
+
+    if start and not end:
+        end = datetime.now()
+    
+    if not start and end:
+        start = datetime.min
+
+    for action in actions:
+        if start and action.timestamp < start:
+            continue
+        if end and action.timestamp > end:
+            continue
+        filtered_actions.append(action)
+
+    return filtered_actions
 
 def record_run(
     task_name: str,
@@ -128,3 +165,54 @@ def get_overdue_tasks() -> TaskLister:
         if tracker.check_overdue(task):
             overdue_tasks.append(task)
     return overdue_tasks
+
+def delete_task(task_name: str) -> TaskRecordResults:
+    """Deletes a task."""
+    global tracker
+    task = get_task_by_name(task_name)
+    if task is None:
+        return TaskRecordResults.FAILURE
+    
+    result = tracker.delete_task(task)
+    if result == TaskRecordResults.SUCCESS:
+        tracker.save()
+    return result
+
+def delete_action(
+    task_name: str,
+    start_time: datetime | None = None,
+    end_time: datetime | None = None,
+    action_name: str | None = None,
+) -> int:
+    global tracker
+    
+    actions_to_delete = get_actions_for_task_filtered(task_name, start_time, end_time, action_name)
+    
+    deleted_count = 0
+    for action in actions_to_delete:
+        tracker.delete_run(action)
+        deleted_count += 1
+    
+    if deleted_count > 0:
+        tracker.save()
+            
+    return deleted_count
+
+
+def get_action(task_name: str, timestamp: datetime) -> Action | None:
+    """Gets an action by task name and timestamp."""
+    global tracker
+    task = get_task_by_name(task_name)
+    if task is None:
+        return None
+    
+    actions = tracker.get_actions_for_task(task)
+    for action in actions:
+        if action.timestamp == timestamp:
+            return action
+    return None
+
+
+
+
+

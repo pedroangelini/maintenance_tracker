@@ -207,15 +207,16 @@ ie: task, timestamp, name, actor
 
 ### Delete actions
 
-Deletes one action at a time. If the name or timestamp can be associated to multiple actions, asks the user which one before proceding.
+Deletes actions based on their names or timestamps. If name is given, it is used as a priority, and the start_time and end_time arguments are ignored. In only one of the start/end times are provided, the other one is consired to be "now".
 
-`mtnt delete action <task_name> [<action_timestamp>|<action_name>]`
+`mtnt delete action <task_name> [--action-name <action_name>] [--start-time <start_time>] [--end-time <end_time>]`
 
-| Argument           | Description                                                                |
-| ------------------ | -------------------------------------------------------------------------- |
-| `task_name`        | The name of the task of the action you want to delete                      |
-| <action_timestamp> | the timestamp of the action you want to delete. Can be a partial timestamp |
-| <action_name>      | the name of the action you want to delete                                  |
+| Argument | Description |
+|---|---|
+| `task_name` | The name of the task of the action you want to delete |
+| `--action-name <action_name>` | the name of the action you want to delete |
+| `--start-time <start_time>` | start time of the actions to delete |
+| `--end-time <end_time>` | end time of the actions to delete |
 
 ### See overdue tasks
 
