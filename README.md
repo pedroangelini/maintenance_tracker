@@ -69,24 +69,24 @@ _using Typer library_
 
 ```
 mtnt [--verbose] [--config_dir <non-default-dir>]
- |-- ⚒️ add
+ |-- ✔️ add
  |    |-- ✔️ task
- |    |-- ❌ action           # (same as mtnt record)
- |-- ❌ record [run]
- |-- ⚒️ list
+ |    |-- ✔️ action           # (same as mtnt record)
+ |-- ✔️ record [run]
+ |-- ✔️ list
  |    |-- ✔️ tasks
- |    |-- ❌ actions
- |-- ⚒️ get
+ |    |-- ✔️ actions
+ |-- ✔️ get
  |    |-- ✔️ tasks
  |    |-- ✔️ task
- |    |-- ❌ actions
- |    |-- ❌ action
+ |    |-- ✔️ actions
+ |    |-- ✔️ action
  |-- ⚒️ edit
  |    |-- ✔️ task
- |    |-- action
- |-- ❌ delete
- |    |-- task
- |    |-- action
+ |    |-- ❌ action
+ |-- ✔️ delete
+ |    |-- ✔️ task
+ |    |-- ✔️ action
  |-- ❌ report
       |-- overdue
       |-- next [run]
