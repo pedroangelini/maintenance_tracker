@@ -300,7 +300,7 @@ class ActionLister(UserList):
             return False
 
         sorted_self = sorted(self.data, key=lambda a: a.timestamp)
-        sorted_other = sorted(self.data, key=lambda a: a.timestamp)
+        sorted_other = sorted(other.data, key=lambda a: a.timestamp)
 
         for i, j in zip(sorted_self, sorted_other):
             if i != j:
