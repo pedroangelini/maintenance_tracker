@@ -375,6 +375,9 @@ class MtnTrackerJSONDecoder(json.JSONDecoder):
         elif type == "Task":
             return Task(**d)
         elif type == "Action":
+            # Convert ref_task dictionary back to a Task object
+            if "ref_task" in d and isinstance(d["ref_task"], dict):
+                d["ref_task"] = Task(**d["ref_task"])
             return Action(**d)
         else:
             # Oops... better put this back together.
