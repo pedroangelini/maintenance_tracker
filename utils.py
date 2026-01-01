@@ -78,20 +78,32 @@ def parse_interval(input: str) -> timedelta:
     return _round_interval(parsed - now)
 
 
-def human_date_str(input: datetime | None) -> str:
+def human_date_str(
+    input: datetime | None, when_now: datetime | None = None
+) -> str:
     """Returns a human readable string representing the date
 
     Args:
         input (datetime | None): the datetime in question
+        when_now (datetime | None): the time to consider as 'now'
 
     Returns:
         str: a human-readable version of the date time, such as "x hours from now"
     """
     if input is None:
         return "no date provided"
-    if abs(input - datetime.now().astimezone()) <= timedelta(days=1):
+
+    if when_now is None:
+        when_now = datetime.now().astimezone()
+
+    if input.tzinfo is not None:
+        input = input.replace(tzinfo=None)
+    if when_now.tzinfo is not None:
+        when_now = when_now.replace(tzinfo=None)
+
+    if abs(input - when_now) <= timedelta(days=1):
         return human_readable.date_time(
-            input.replace(tzinfo=None),  # timezone hack so the human_readable works
+            input,
             minimum_unit="SECONDS",
         )
     else:
