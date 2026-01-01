@@ -113,19 +113,19 @@ mtnt [--verbose] [--config_dir <non-default-dir>]
 
 ### Record the run of a task
 
-`mtnt record [run] <task_name> [now|<action_timestamp>] <action_name> <actor>`
+`mtnt record [run] <task_name> [now|<action_timestamp>] [<action_name>] [<actor>]`
 
 or
 
-`mtnt add action <task_name> [now|<action_timestamp>] <action_name> <actor>`
+`mtnt add action <task_name> [now|<action_timestamp>] [<action_name>] [<actor>]`
 
-| Argument           | Description                           |
-| ------------------ | ------------------------------------- |
-| `run`              | optional, doesn't do anything         |
-| `task_name`        | The name of the task                  |
-| `action_timestamp` | The time the action was executed      |
-| `action_name`      | A name for the action (optional)      |
-| `actor`            | name of the person who did the action |
+| Argument | Description |
+|---|---|
+| `run` | optional, doesn't do anything |
+| `task_name` | The name of the task |
+| `action_timestamp` | The time the action was executed |
+| `action_name` | A name for the action (optional) |
+| `actor` | name of the person who did the action (optional) |
 
 ### List tasks
 

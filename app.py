@@ -91,3 +91,24 @@ def edit_task(
     
     return new_task
 
+
+def record_run(
+    task_name: str,
+    timestamp: datetime | None = None,
+    action_name: str = "",
+    actor: str = "",
+) -> ActionRecordResults:
+    """Records an action for a given task."""
+    global tracker
+    task = get_task_by_name(task_name)
+    if task is None:
+        return ActionRecordResults.FAILURE
+
+    if timestamp is None:
+        timestamp = datetime.now()
+
+    action = Action(ref_task=task, timestamp=timestamp, name=action_name, actor=actor)
+    result = tracker.record_run(action)
+    if result == ActionRecordResults.SUCCESS:
+        tracker.save()
+    return result

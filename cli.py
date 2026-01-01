@@ -116,8 +116,20 @@ def add_task(
 
 
 @add_app.command("action")
-def add_action():
-    print("add task command!")
+def add_action(
+    task_name: Annotated[str, typer.Argument(help="name of the task to record an action for")],
+    timestamp: Annotated[
+        Optional[str], typer.Option(help="timestamp of the action, defaults to now")
+    ] = None,
+    action_name: Annotated[
+        Optional[str], typer.Argument(help="name of the action")
+    ] = "",
+    actor: Annotated[
+        Optional[str], typer.Argument(help="name of the person who did the action")
+    ] = "",
+):
+    """Adds an action to the tracker (alias for record run)."""
+    record_run(task_name, timestamp, action_name, actor)
 
 
 ########################################
@@ -125,8 +137,28 @@ def add_action():
 ########################################
 
 
-def record():
-    print("record command!")
+@record_app.command("run")
+def record_run(
+    task_name: Annotated[str, typer.Argument(help="name of the task to record an action for")],
+    timestamp: Annotated[
+        Optional[str], typer.Option(help="timestamp of the action, defaults to now")
+    ] = None,
+    action_name: Annotated[
+        Optional[str], typer.Argument(help="name of the action")
+    ] = "",
+    actor: Annotated[
+        Optional[str], typer.Argument(help="name of the person who did the action")
+    ] = "",
+):
+    """Records an action for a task."""
+    ts = utils.parse_date(timestamp) if timestamp else None
+    result = app.record_run(task_name, ts, action_name, actor)
+    if result == ActionRecordResults.SUCCESS:
+        rich.print(f":heavy_check_mark: [green]Successfully recorded action for task '{task_name}'[/green]")
+    else:
+        rich.print(f":x: [red]Something went wrong[/red]")
+        raise typer.Exit(code=GENERIC_FAIL_CODE)
+
 
 
 ########################################
