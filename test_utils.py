@@ -1,4 +1,5 @@
 from datetime import UTC, date, datetime, timedelta
+from dateutil.relativedelta import relativedelta
 from time import sleep
 
 import pytest
@@ -54,7 +55,7 @@ def test__round_datetime(
         (
             "1 month",
             _round_datetime(
-                datetime.now().replace(month=date.today().month + 1)
+                datetime.now() + relativedelta(months=1)
             ).astimezone(),
         ),
     ],
@@ -177,19 +178,19 @@ def test_parse_interval_raises(
             "now",
         ),
         (
-            datetime.today().astimezone() - timedelta(days=1),
+            datetime.now().astimezone() - timedelta(days=1),
             "23 hours ago",
         ),
         (
-            datetime.today().astimezone() + timedelta(days=1),
+            datetime.now().astimezone() + timedelta(days=1),
             "tomorrow",
         ),
         (
-            datetime.today().astimezone() + timedelta(hours=5),
+            datetime.now().astimezone() + timedelta(hours=5),
             "5 hours from now",
         ),
     ],
 )
 def test_human_date_str(input, expected):
-    with freeze_time("2025-03-23 19:14:00"):
+    with freeze_time(datetime(2025, 3, 23, 19, 14, 00)):
         assert human_date_str(input) == expected

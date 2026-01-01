@@ -47,7 +47,14 @@ def get_tasks_by_name(search_string: str) -> TaskLister:
 def get_tasks_by_time(
     start_time: datetime, end_time: datetime | None = None
 ) -> TaskLister:
-    pass
+    global tracker
+    actions = tracker.get_actions_by_time(start_time, end_time)
+    tasks = TaskLister()
+    for action in actions:
+        if action.ref_task not in tasks:
+            tasks.append(action.ref_task)
+    return tasks
+
 
 
 def get_all_tasks() -> TaskLister:
@@ -90,4 +97,122 @@ def edit_task(
     tracker.save()
     
     return new_task
+
+def get_actions_for_task_filtered(
+    task_name: str,
+    start_time: datetime | None = None,
+    end_time: datetime | None = None,
+    action_name: str | None = None,
+) -> ActionLister:
+    global tracker
+    task = get_task_by_name(task_name)
+    if task is None:
+        return ActionLister([])
+
+    actions = tracker.get_actions_for_task(task)
+    filtered_actions = ActionLister()
+
+    if action_name:
+        for action in actions:
+            if action.name == action_name:
+                filtered_actions.append(action)
+        return filtered_actions
+
+    start = start_time
+    end = end_time
+
+    if start and not end:
+        end = datetime.now()
+    
+    if not start and end:
+        start = datetime.min
+
+    for action in actions:
+        if start and action.timestamp < start:
+            continue
+        if end and action.timestamp > end:
+            continue
+        filtered_actions.append(action)
+
+    return filtered_actions
+
+def record_run(
+    task_name: str,
+    timestamp: datetime | None = None,
+    action_name: str = "",
+    actor: str = "",
+) -> ActionRecordResults:
+    """Records an action for a given task."""
+    global tracker
+    task = get_task_by_name(task_name)
+    if task is None:
+        return ActionRecordResults.FAILURE
+
+    if timestamp is None:
+        timestamp = datetime.now()
+
+    action = Action(ref_task=task, timestamp=timestamp, name=action_name, actor=actor)
+    result = tracker.record_run(action)
+    if result == ActionRecordResults.SUCCESS:
+        tracker.save()
+    return result
+
+def get_overdue_tasks() -> TaskLister:
+    """Returns a list of overdue tasks."""
+    global tracker
+    overdue_tasks = TaskLister()
+    for task in tracker.task_list:
+        if tracker.check_overdue(task):
+            overdue_tasks.append(task)
+    return overdue_tasks
+
+def delete_task(task_name: str) -> TaskRecordResults:
+    """Deletes a task."""
+    global tracker
+    task = get_task_by_name(task_name)
+    if task is None:
+        return TaskRecordResults.FAILURE
+    
+    result = tracker.delete_task(task)
+    if result == TaskRecordResults.SUCCESS:
+        tracker.save()
+    return result
+
+def delete_action(
+    task_name: str,
+    start_time: datetime | None = None,
+    end_time: datetime | None = None,
+    action_name: str | None = None,
+) -> int:
+    global tracker
+    
+    actions_to_delete = get_actions_for_task_filtered(task_name, start_time, end_time, action_name)
+    
+    deleted_count = 0
+    for action in actions_to_delete:
+        tracker.delete_run(action)
+        deleted_count += 1
+    
+    if deleted_count > 0:
+        tracker.save()
+            
+    return deleted_count
+
+
+def get_action(task_name: str, timestamp: datetime) -> Action | None:
+    """Gets an action by task name and timestamp."""
+    global tracker
+    task = get_task_by_name(task_name)
+    if task is None:
+        return None
+    
+    actions = tracker.get_actions_for_task(task)
+    for action in actions:
+        if action.timestamp == timestamp:
+            return action
+    return None
+
+
+
+
 

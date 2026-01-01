@@ -118,6 +118,29 @@ class MaintenanceTracker:
 
         return ActionLister(result_list)
 
+    def get_actions_by_time(
+        self, start_time: datetime, end_time: datetime | None = None
+    ) -> ActionLister:
+        """gets a list of actions within a given time range
+
+        Args:
+            start_time (datetime): the start of the time range
+            end_time (datetime | None, optional): the end of the time range. Defaults to None.
+
+        Returns:
+            ActionLister: a list of actions within the desired time range
+        """
+        if end_time is None:
+            end_time = datetime.now(UTC)
+
+        result_list = [
+            action
+            for action in self.action_list
+            if start_time <= action.timestamp <= end_time
+        ]
+
+        return ActionLister(result_list)
+
     def get_latest_task_run(
         self, tgt_task: Task, when: datetime | None = None
     ) -> Action | None:
@@ -182,7 +205,7 @@ class MaintenanceTracker:
         if when is None:
             when = datetime.now(UTC)
 
-        last_run = self.get_latest_task_run(task)
+        last_run = self.get_latest_task_run(task, when=when)
 
         if last_run is None:
             return None

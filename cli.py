@@ -116,8 +116,20 @@ def add_task(
 
 
 @add_app.command("action")
-def add_action():
-    print("add task command!")
+def add_action(
+    task_name: Annotated[str, typer.Argument(help="name of the task to record an action for")],
+    timestamp: Annotated[
+        Optional[str], typer.Option(help="timestamp of the action, defaults to now")
+    ] = None,
+    action_name: Annotated[
+        Optional[str], typer.Argument(help="name of the action")
+    ] = "",
+    actor: Annotated[
+        Optional[str], typer.Argument(help="name of the person who did the action")
+    ] = "",
+):
+    """Adds an action to the tracker (alias for record run)."""
+    record_run(task_name, timestamp, action_name, actor)
 
 
 ########################################
@@ -125,8 +137,28 @@ def add_action():
 ########################################
 
 
-def record():
-    print("record command!")
+@record_app.command("run")
+def record_run(
+    task_name: Annotated[str, typer.Argument(help="name of the task to record an action for")],
+    timestamp: Annotated[
+        Optional[str], typer.Option(help="timestamp of the action, defaults to now")
+    ] = None,
+    action_name: Annotated[
+        Optional[str], typer.Argument(help="name of the action")
+    ] = "",
+    actor: Annotated[
+        Optional[str], typer.Argument(help="name of the person who did the action")
+    ] = "",
+):
+    """Records an action for a task."""
+    ts = utils.parse_date(timestamp) if timestamp else None
+    result = app.record_run(task_name, ts, action_name, actor)
+    if result == ActionRecordResults.SUCCESS:
+        rich.print(f":heavy_check_mark: [green]Successfully recorded action for task '{task_name}'[/green]")
+    else:
+        rich.print(f":x: [red]Something went wrong[/red]")
+        raise typer.Exit(code=GENERIC_FAIL_CODE)
+
 
 
 ########################################
@@ -135,8 +167,15 @@ def record():
 
 
 @list_app.command("tasks", help="Prints a list of task")
-def list():
-    task_list = app.get_all_tasks()
+def list(
+    overdue: Annotated[
+        bool, typer.Option("--overdue", help="list only overdue tasks")
+    ] = False,
+):
+    if overdue:
+        task_list = app.get_overdue_tasks()
+    else:
+        task_list = app.get_all_tasks()
     _print_task_list_table(task_list)
 
 
@@ -151,21 +190,24 @@ def list():
 )
 def get_tasks(
     name: Annotated[Optional[str], typer.Option()] = "",
-    interval: Annotated[Optional[str], typer.Option()] = "",
+    start_time: Annotated[Optional[str], typer.Option()] = None,
+    end_time: Annotated[Optional[str], typer.Option()] = None,
 ):
     """get all tasks based on either a name or a time interval"""
-
-    if not name and not interval:
-        task_list = app.get_all_tasks()
-    elif name is not None:
-        print(name)
+    task_list = TaskLister()
+    if name:
         task_list = app.get_tasks_by_name(name)
+    elif start_time or end_time:
+        start = utils.parse_date(start_time) if start_time else utils.parse_date("now")
+        end = utils.parse_date(end_time) if end_time else utils.parse_date("now")
+        task_list = app.get_tasks_by_time(start, end)
+    
+    if len(task_list) > 0:
+        rich.print(f"found {len(task_list)} tasks")
+        for t in task_list:
+            rich.print(_rich_task(t))
     else:
-        task_list = app.get_tasks_by_time()
-
-    rich.print(f"found {len(task_list)} tasks")
-    for t in task_list:
-        rich.print(_rich_task(t))
+        rich.print("No tasks found")
 
 
 @get_app.command(
@@ -261,8 +303,47 @@ def edit_task(
 ########################################
 
 
-def delete():
-    print("delete command!")
+@delete_app.command("task")
+def delete_task(
+    task_name: Annotated[str, typer.Argument(help="name of the task to delete")],
+):
+    """Deletes a task."""
+    result = app.delete_task(task_name)
+    if result == TaskRecordResults.SUCCESS:
+        rich.print(f":heavy_check_mark: [green]Successfully deleted task '{task_name}'[/green]")
+    else:
+        rich.print(f":x: [red]Could not delete task '{task_name}'. It might not exist or have actions that depend on it.[/red]")
+        raise typer.Exit(code=GENERIC_FAIL_CODE)
+
+
+@delete_app.command("action")
+def delete_action(
+    task_name: Annotated[str, typer.Argument(help="name of the task of the action to delete")],
+    start_time: Annotated[
+        Optional[str], typer.Option(help="start time of the actions to delete")
+    ] = None,
+    end_time: Annotated[
+        Optional[str], typer.Option(help="end time of the actions to delete")
+    ] = None,
+    action_name: Annotated[
+        Optional[str], typer.Option(help="name of the action to delete")
+    ] = None,
+):
+    """Deletes one or more actions."""
+    if not start_time and not end_time and not action_name:
+        rich.print("No action to delete. Please provide a time range or an action name.")
+        raise typer.Exit()
+
+    start = utils.parse_date(start_time) if start_time else None
+    end = utils.parse_date(end_time) if end_time else None
+
+    deleted_count = app.delete_action(task_name, start, end, action_name)
+
+    if deleted_count > 0:
+        rich.print(f":heavy_check_mark: [green]Successfully deleted {deleted_count} action(s) for task '{task_name}'[/green]")
+    else:
+        rich.print(f":x: [red]No actions were deleted for task '{task_name}'. They might not exist or the provided criteria didn't match.[/red]")
+
 
 
 ########################################
