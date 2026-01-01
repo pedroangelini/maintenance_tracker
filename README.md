@@ -129,9 +129,11 @@ or
 
 ### List tasks
 
-`mtnt list tasks`
+`mtnt list tasks [--overdue]`
 
-No arguments
+| Argument | Description |
+|---|---|
+| `--overdue` | list only overdue tasks |
 
 ### List actions optionally for a single task
 

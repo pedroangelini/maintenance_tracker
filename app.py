@@ -47,7 +47,14 @@ def get_tasks_by_name(search_string: str) -> TaskLister:
 def get_tasks_by_time(
     start_time: datetime, end_time: datetime | None = None
 ) -> TaskLister:
-    pass
+    global tracker
+    actions = tracker.get_actions_by_time(start_time, end_time)
+    tasks = TaskLister()
+    for action in actions:
+        if action.ref_task not in tasks:
+            tasks.append(action.ref_task)
+    return tasks
+
 
 
 def get_all_tasks() -> TaskLister:
@@ -112,3 +119,12 @@ def record_run(
     if result == ActionRecordResults.SUCCESS:
         tracker.save()
     return result
+
+def get_overdue_tasks() -> TaskLister:
+    """Returns a list of overdue tasks."""
+    global tracker
+    overdue_tasks = TaskLister()
+    for task in tracker.task_list:
+        if tracker.check_overdue(task):
+            overdue_tasks.append(task)
+    return overdue_tasks

@@ -167,8 +167,15 @@ def record_run(
 
 
 @list_app.command("tasks", help="Prints a list of task")
-def list():
-    task_list = app.get_all_tasks()
+def list(
+    overdue: Annotated[
+        bool, typer.Option("--overdue", help="list only overdue tasks")
+    ] = False,
+):
+    if overdue:
+        task_list = app.get_overdue_tasks()
+    else:
+        task_list = app.get_all_tasks()
     _print_task_list_table(task_list)
 
 
@@ -183,21 +190,24 @@ def list():
 )
 def get_tasks(
     name: Annotated[Optional[str], typer.Option()] = "",
-    interval: Annotated[Optional[str], typer.Option()] = "",
+    start_time: Annotated[Optional[str], typer.Option()] = None,
+    end_time: Annotated[Optional[str], typer.Option()] = None,
 ):
     """get all tasks based on either a name or a time interval"""
-
-    if not name and not interval:
-        task_list = app.get_all_tasks()
-    elif name is not None:
-        print(name)
+    task_list = TaskLister()
+    if name:
         task_list = app.get_tasks_by_name(name)
+    elif start_time or end_time:
+        start = utils.parse_date(start_time) if start_time else utils.parse_date("now")
+        end = utils.parse_date(end_time) if end_time else utils.parse_date("now")
+        task_list = app.get_tasks_by_time(start, end)
+    
+    if len(task_list) > 0:
+        rich.print(f"found {len(task_list)} tasks")
+        for t in task_list:
+            rich.print(_rich_task(t))
     else:
-        task_list = app.get_tasks_by_time()
-
-    rich.print(f"found {len(task_list)} tasks")
-    for t in task_list:
-        rich.print(_rich_task(t))
+        rich.print("No tasks found")
 
 
 @get_app.command(

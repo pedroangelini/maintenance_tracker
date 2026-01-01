@@ -158,3 +158,41 @@ def test_check_overdue_only_as_action_after_when(task1):
     mtnt.record_run(future_action)
 
     assert mtnt.check_overdue(task1, when=when) == True
+
+
+def test_time_since_last_exec_no_runs(task1):
+    mtnt = MaintenanceTracker()
+    mtnt.register_task(task1)
+    assert mtnt.time_since_last_exec(task1) is None
+
+
+def test_time_since_last_exec_with_runs(task1, action1_t1, action2_t1):
+    mtnt = MaintenanceTracker()
+    mtnt.register_task(task1)
+    mtnt.record_run(action1_t1)  # 2024-01-01 00:00 UTC
+    mtnt.record_run(action2_t1)  # 2024-01-02 06:00 UTC
+
+    # Test with explicit 'when' after the last action
+    when_after = datetime(2024, 1, 2, 7, 0, tzinfo=UTC)
+    expected_timedelta = timedelta(hours=1)
+    assert mtnt.time_since_last_exec(task1, when=when_after) == expected_timedelta
+
+    # Test with explicit 'when' before the last action (should still pick the last action before 'when')
+    when_before_last_run = datetime(2024, 1, 1, 12, 0, tzinfo=UTC)
+    expected_timedelta_before = timedelta(hours=12) # from action1_t1 (2024-01-01 00:00 UTC)
+    assert mtnt.time_since_last_exec(task1, when=when_before_last_run) == expected_timedelta_before
+
+
+def test_time_since_last_exec_with_when_equal_to_last_run(task1, action2_t1):
+    mtnt = MaintenanceTracker()
+    mtnt.register_task(task1)
+    mtnt.record_run(action2_t1)  # 2024-01-02 06:00 UTC
+
+    when_equal = datetime(2024, 1, 2, 6, 0, tzinfo=UTC)
+    expected_timedelta = timedelta(seconds=0)
+    assert mtnt.time_since_last_exec(task1, when=when_equal) == expected_timedelta
+
+
+def test_time_since_last_exec_empty_tracker(task1):
+    mtnt = MaintenanceTracker()
+    assert mtnt.time_since_last_exec(task1) is None
