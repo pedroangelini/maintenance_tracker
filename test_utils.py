@@ -167,30 +167,20 @@ def test_parse_interval_raises(
 
 
 @pytest.mark.parametrize(
-    "input,expected",
+    "delta,expected",
     [
-        (
-            None,
-            "no date provided",
-        ),
-        (
-            datetime(2025, 3, 23, 19, 14, 00).astimezone(),
-            "now",
-        ),
-        (
-            datetime.now().astimezone() - timedelta(days=1),
-            "23 hours ago",
-        ),
-        (
-            datetime.now().astimezone() + timedelta(days=1),
-            "tomorrow",
-        ),
-        (
-            datetime.now().astimezone() + timedelta(hours=5),
-            "5 hours from now",
-        ),
+        (None, "no date provided"),
+        (timedelta(seconds=0), "now"),
+        (timedelta(days=-1), "a day ago"),
+        (timedelta(days=1), "a day from now"),
+        (timedelta(hours=5), "5 hours from now"),
     ],
 )
-def test_human_date_str(input, expected):
-    with freeze_time(datetime(2025, 3, 23, 19, 14, 00)):
-        assert human_date_str(input) == expected
+def test_human_date_str(delta, expected):
+    frozen_time = datetime(2025, 3, 23, 19, 14, 00)
+    with freeze_time(frozen_time):
+        if delta is None:
+            test_input = None
+        else:
+            test_input = datetime.now() + delta
+        assert human_date_str(test_input, when_now=frozen_time) == expected
