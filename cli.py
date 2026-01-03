@@ -63,6 +63,26 @@ def _print_task_list_table(task_list: TaskLister) -> None:
     console.print(table)
 
 
+def _print_action_list_table(action_list: ActionLister) -> None:
+    table = rich.table.Table(title="Action List")
+
+    table.add_column("Task", justify="left", no_wrap=True)
+    table.add_column("Action Name")
+    table.add_column("Timestamp", justify="right", style="green")
+    table.add_column("Actor", justify="right", style="blue")
+
+    for a in action_list:
+        table.add_row(
+            a.ref_task.name,
+            a.name,
+            utils.human_date_str(a.timestamp),
+            a.actor,
+        )
+
+    console = rich.console.Console()
+    console.print(table)
+
+
 ########################################
 # add app
 ########################################
@@ -177,6 +197,19 @@ def list_tasks_cli(
     else:
         task_list = app.get_all_tasks()
     _print_task_list_table(task_list)
+
+
+@list_app.command("actions", help="Prints a list of actions")
+def list_actions_cli(
+    task_name: Annotated[
+        Optional[str], typer.Argument(help="name of the task to filter actions")
+    ] = None,
+):
+    if task_name:
+        action_list = app.get_actions_for_task_filtered(task_name)
+    else:
+        action_list = app.get_all_actions()
+    _print_action_list_table(action_list)
 
 
 ########################################

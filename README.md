@@ -76,11 +76,11 @@ mtnt [--verbose] [--config_dir <non-default-dir>]
  |-- ✔️ list
  |    |-- ✔️ tasks
  |    |-- ✔️ actions
- |-- ✔️ get
+ |-- ⚒️ get
  |    |-- ✔️ tasks
  |    |-- ✔️ task
- |    |-- ✔️ actions
- |    |-- ✔️ action
+ |    |-- ❌ actions
+ |    |-- ❌ action
  |-- ⚒️ edit
  |    |-- ✔️ task
  |    |-- ❌ action
