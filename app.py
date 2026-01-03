@@ -66,6 +66,14 @@ def get_all_tasks() -> TaskLister:
     return tracker.task_list
 
 
+def get_all_actions() -> ActionLister:
+    global tracker
+    logger.debug(tracker)
+    logger.info(f"getting all actions")
+    logger.info(f"found {len(tracker.action_list)} actions")
+    return tracker.action_list
+
+
 def edit_task(
     old_task : Task,
     changes: dict,

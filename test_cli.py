@@ -6,8 +6,8 @@ import pytest
 from typer.testing import CliRunner
 
 from main import typer_app
-from core import Task, TaskLister
-from maintenance_tracker import ActionRecordResults, TaskRecordResults
+from core import Task, TaskLister, Action
+from maintenance_tracker import ActionRecordResults, TaskRecordResults, ActionLister
 import config as config_module
 
 runner = CliRunner()
@@ -142,6 +142,33 @@ def test_list_tasks_overdue(mock_app, tmp_config_dir):
     assert result.exit_code == 0
     assert "OverdueTask" in result.stdout
     mock_app.get_overdue_tasks.assert_called_once()
+
+
+def test_list_actions_all(mock_app, tmp_config_dir):
+    """Test listing all actions."""
+    t1 = Task("Task1")
+    a1 = Action(timestamp=datetime.datetime.now(), ref_task=t1, name="Action1")
+    mock_app.get_all_actions.return_value = ActionLister([a1])
+    
+    result = invoke_app(["list", "actions"], tmp_config_dir)
+    
+    assert result.exit_code == 0
+    assert "Action1" in result.stdout
+    assert "Task1" in result.stdout
+    mock_app.get_all_actions.assert_called_once()
+
+
+def test_list_actions_filtered(mock_app, tmp_config_dir):
+    """Test listing actions filtered by task."""
+    t1 = Task("Task1")
+    a1 = Action(timestamp=datetime.datetime.now(), ref_task=t1, name="Action1")
+    mock_app.get_actions_for_task_filtered.return_value = ActionLister([a1])
+    
+    result = invoke_app(["list", "actions", "Task1"], tmp_config_dir)
+    
+    assert result.exit_code == 0
+    assert "Action1" in result.stdout
+    mock_app.get_actions_for_task_filtered.assert_called_with("Task1")
 
 
 def test_get_tasks_by_name(mock_app, tmp_config_dir):

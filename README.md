@@ -73,9 +73,9 @@ mtnt [--verbose] [--config_dir <non-default-dir>]
  |    |-- ✔️ task
  |    |-- ✔️ action           # (same as mtnt record)
  |-- ✔️ record [run]
- |-- ⚒️ list
+ |-- ✔️ list
  |    |-- ✔️ tasks
- |    |-- ❌ actions
+ |    |-- ✔️ actions
  |-- ⚒️ get
  |    |-- ✔️ tasks
  |    |-- ✔️ task
