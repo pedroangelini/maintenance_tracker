@@ -167,7 +167,7 @@ def record_run(
 
 
 @list_app.command("tasks", help="Prints a list of task")
-def list(
+def list_tasks_cli(
     overdue: Annotated[
         bool, typer.Option("--overdue", help="list only overdue tasks")
     ] = False,
