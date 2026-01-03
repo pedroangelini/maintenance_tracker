@@ -196,3 +196,90 @@ def test_time_since_last_exec_with_when_equal_to_last_run(task1, action2_t1):
 def test_time_since_last_exec_empty_tracker(task1):
     mtnt = MaintenanceTracker()
     assert mtnt.time_since_last_exec(task1) is None
+
+
+def test_record_run_task_mismatch(task1):
+    mtnt = MaintenanceTracker()
+    mtnt.register_task(task1)
+    
+    task1_modified = task1.replace({"description": "a new description"})
+    action = Action(datetime.now(UTC), task1_modified)
+    
+    result = mtnt.record_run(action)
+    assert result == ActionRecordResults.TASK_MISMATCH
+
+def test_get_actions_for_task_ordered_desc(task1, action1_t1, action2_t1):
+    mtnt = MaintenanceTracker()
+    mtnt.register_task(task1)
+    mtnt.record_run(action1_t1)
+    mtnt.record_run(action2_t1)
+    
+    actions = mtnt.get_actions_for_task(task1, ordered=Ordering.DESC)
+    assert actions[0] == action2_t1
+    assert actions[1] == action1_t1
+
+def test_get_latest_task_run_with_future_action(task1, action1_t1):
+    mtnt = MaintenanceTracker()
+    mtnt.register_task(task1)
+    mtnt.record_run(action1_t1)
+
+    future_action = Action(datetime.now(UTC) + timedelta(days=1), task1)
+    mtnt.record_run(future_action)
+
+    # `when` is before the future_action
+    when = datetime.now(UTC)
+    latest_run = mtnt.get_latest_task_run(task1, when=when)
+    assert latest_run == action1_t1
+
+def test_delete_task_with_dangling_actions(task1, action1_t1):
+    mtnt = MaintenanceTracker()
+    mtnt.register_task(task1)
+    mtnt.record_run(action1_t1)
+
+    result = mtnt.delete_task(task1)
+    assert result == TaskRecordResults.FAILURE
+    assert task1 in mtnt.task_list
+
+def test_delete_run(task1, action1_t1, action2_t1):
+    mtnt = MaintenanceTracker()
+    mtnt.register_task(task1)
+    mtnt.record_run(action1_t1)
+    mtnt.record_run(action2_t1)
+
+    result = mtnt.delete_run(action1_t1)
+    assert result == ActionRecordResults.SUCCESS
+    assert action1_t1 not in mtnt.action_list
+    assert len(mtnt.action_list) == 1
+
+def test_save_and_load_tracker(tmp_path, task1, action1_t1):
+    save_dir = tmp_path / "tracker_data"
+    save_dir.mkdir()
+    
+    mtnt = MaintenanceTracker(save_dir=str(save_dir))
+    mtnt.register_task(task1)
+    mtnt.record_run(action1_t1)
+    mtnt.save()
+
+    # create a new tracker and load the data
+    new_mtnt = MaintenanceTracker(load=True, save_dir=str(save_dir))
+    assert len(new_mtnt.task_list) == 1
+    assert len(new_mtnt.action_list) == 1
+    assert new_mtnt.task_list[0] == task1
+    assert new_mtnt.action_list[0] == action1_t1
+
+def test_get_actions_by_time(task1, action1_t1, action2_t1):
+    mtnt = MaintenanceTracker()
+    mtnt.register_task(task1)
+    mtnt.record_run(action1_t1) # 2024-01-01
+    mtnt.record_run(action2_t1) # 2024-01-02
+
+    start_time = datetime(2024, 1, 1, 12, 0, tzinfo=UTC)
+    end_time = datetime(2024, 1, 2, 12, 0, tzinfo=UTC)
+    
+    actions = mtnt.get_actions_by_time(start_time, end_time)
+    assert len(actions) == 1
+    assert actions[0] == action2_t1
+    
+    # Test with no end time (defaults to now)
+    actions_no_end = mtnt.get_actions_by_time(start_time=datetime(2023, 1, 1, 0, 0, tzinfo=UTC))
+    assert len(actions_no_end) == 2

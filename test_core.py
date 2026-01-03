@@ -379,3 +379,92 @@ def test_action_replace_multiple_fields(action1_t1: Action, task2: Task):
     assert updated_action.name == action1_t1.name
     assert action1_t1.timestamp != new_timestamp, "Original action should be immutable"
 
+
+@pytest.fixture
+def task_no_interval(task1: Task):
+    """A task with a start time but no interval."""
+    return task1.replace(changes={"interval": None})
+
+
+def test_task_str(task1):
+    string = str(task1)
+    assert "Task: my first task" in string
+    assert "a description for my task1" in string
+    assert f"starting on: {utils.human_date_str(task1.start_time)}" in string
+    assert f"interval: {utils.human_interval_str(task1.interval)}" in string
+
+def test_task_get_programmed_time_negative_n_before_start(task1):
+    when = task1.start_time + timedelta(minutes=30)
+    assert task1.get_programmed_time(n=-2, when=when) is None
+
+def test_task_get_all_programmed_times_no_interval(task_no_interval):
+    when = task_no_interval.start_time - timedelta(days=1)
+    period = timedelta(days=2)
+    times = task_no_interval.get_all_programmed_times(period, when)
+    assert times == [task_no_interval.start_time]
+
+    when_after = task_no_interval.start_time + timedelta(days=1)
+    times_after = task_no_interval.get_all_programmed_times(period, when_after)
+    assert times_after == []
+
+    # Also test case where it does not repeat and start_time is not in period
+    when = task_no_interval.start_time - timedelta(days=2)
+    period = timedelta(days=1)
+    times = task_no_interval.get_all_programmed_times(period, when)
+    assert times == []
+
+
+def test_task_get_all_programmed_times_break(task1):
+    # This test is to cover the break condition in get_all_programmed_times
+    when = task1.start_time
+    period = timedelta(hours=5)
+    times = task1.get_all_programmed_times(period, when)
+    assert len(times) == 5
+
+def test_persister_remove_nonexistent_file(tmp_path):
+    persister = Persister(None)
+    persister.save_path = tmp_path / "non_existent_file.json"
+    persister._remove_file() # Should not raise FileNotFoundError
+
+def test_json_decoder_unknown_type():
+    import json
+    json_str = '{"__type__": "UnknownType", "foo": "bar"}'
+    decoder = MtnTrackerJSONDecoder()
+    decoded = decoder.decode(json_str)
+    assert decoded == {"__type__": "UnknownType", "foo": "bar"}
+
+def test_json_decoder_no_type():
+    import json
+    json_str = '{"foo": "bar"}'
+    decoder = MtnTrackerJSONDecoder()
+    decoded = decoder.decode(json_str)
+    assert decoded == {"foo": "bar"}
+
+def test_persister_constructors(tmp_path: Path):
+    task_list = TaskLister([])
+    action_list = ActionLister([])
+
+    # Test TaskListPersister with specified dirname
+    tlp_dirname = TaskListPersister(task_list, dirname=str(tmp_path))
+    assert tlp_dirname.dirname == str(tmp_path)
+    assert tlp_dirname.filename == DEFAULT_TASK_LIST_FILE
+    assert tlp_dirname.save_path == tmp_path / DEFAULT_TASK_LIST_FILE
+
+    # Test TaskListPersister with specified filename
+    tlp_filename = TaskListPersister(task_list, filename="custom_tasks.json")
+    assert tlp_filename.filename == "custom_tasks.json"
+
+    # Test ActionListPersister with specified dirname
+    alp_dirname = ActionListPersister(action_list, dirname=str(tmp_path))
+    assert alp_dirname.dirname == str(tmp_path)
+    assert alp_dirname.filename == DEFAULT_ACTION_LIST_FILE
+    assert alp_dirname.save_path == tmp_path / DEFAULT_ACTION_LIST_FILE
+
+    # Test ActionListPersister with specified filename
+    alp_filename = ActionListPersister(action_list, filename="custom_actions.json")
+    assert alp_filename.filename == "custom_actions.json"
+
+def test_task_lister_get_task_by_name_not_found(task1):
+    lister = TaskLister([task1])
+    assert lister.get_task_by_name("non-existent task") is None
+
