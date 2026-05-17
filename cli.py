@@ -43,6 +43,18 @@ def _rich_task(t: Task) -> str:
     return ret_str
 
 
+def _rich_action(a: Action) -> str:
+    ret_str = f"Action for Task: [bold]{a.ref_task.name}[/bold]\n"
+    ret_str += f"Timestamp:   {utils.human_date_str(a.timestamp)}\n"
+    if a.name:
+        ret_str += f"Action Name: {a.name}\n"
+    if a.actor:
+        ret_str += f"Actor:       {a.actor}\n"
+    if a.description:
+        ret_str += f"Description: [italic]{a.description}[/italic]\n"
+    return ret_str
+
+
 def _print_task_list_table(task_list: TaskLister) -> None:
     table = rich.table.Table(title="Task List")
 
@@ -253,6 +265,53 @@ def get_task(name: Annotated[str, typer.Argument()]):
     rich.print(t)
 
 
+@get_app.command("actions")
+def get_actions_cli(
+    task_name: Annotated[str, typer.Argument(help="name of the task")],
+    action_name: Annotated[Optional[str], typer.Option(help="filter by action name")] = None,
+    start_time: Annotated[Optional[str], typer.Option(help="filter by start time")] = None,
+    end_time: Annotated[Optional[str], typer.Option(help="filter by end time")] = None,
+):
+    """Prints detailed information for actions of a specific task."""
+    start = utils.parse_date(start_time) if start_time else None
+    end = utils.parse_date(end_time) if end_time else None
+    actions = app.get_actions_for_task_filtered(task_name, start, end, action_name)
+    if not actions:
+        rich.print(f"No actions found for task '{task_name}'")
+        return
+    rich.print(f"found {len(actions)} actions")
+    for a in actions:
+        rich.print(_rich_action(a))
+
+
+@get_app.command("action", no_args_is_help=True)
+def get_action_cli(
+    task_name: Annotated[str, typer.Argument(help="name of the task")],
+    search_criteria: Annotated[str, typer.Argument(help="timestamp or name of the action")],
+):
+    """Prints details of a single action. Returns error -10 if multiple actions match."""
+    ts = None
+    try:
+        ts = utils.parse_date(search_criteria)
+    except utils.DateParseError:
+        pass
+    actions = (
+        app.get_actions_for_task_filtered(task_name, start_time=ts, end_time=ts)
+        if ts
+        else app.get_actions_for_task_filtered(task_name, action_name=search_criteria)
+    )
+    if not actions:
+        rich.print(
+            f":x: [red]No action found for task '{task_name}' matching '{search_criteria}'[/red]"
+        )
+        raise typer.Exit(code=GENERIC_FAIL_CODE)
+    if len(actions) > 1:
+        rich.print(f":x: [red]Multiple actions found matching '{search_criteria}':[/red]")
+        _print_action_list_table(actions)
+        raise typer.Exit(code=-10)
+    rich.print(_rich_action(actions[0]))
+
+
 ########################################
 # edit app
 ########################################
@@ -323,10 +382,73 @@ def edit_task(
         rich.print(
             f":heavy_check_mark: [green]Task '{task_name}' updated successfully[/green]\n{new_task}"
         )
-    else: 
+    else:
+        rich.print(f":cross_mark: [red]Could not update '{task_name}'[/red]\n")
+        raise typer.Exit(code=GENERIC_FAIL_CODE)
+
+
+@edit_app.command("action", no_args_is_help=True)
+def edit_action_cli(
+    task_name: Annotated[
+        str, typer.Argument(help="name of the task of the action to edit")
+    ],
+    search_criteria: Annotated[
+        str, typer.Argument(help="timestamp or name of the action to search for")
+    ],
+    new_task_name: Annotated[Optional[str], typer.Option("--task", help="new task name")] = None,
+    new_timestamp: Annotated[Optional[str], typer.Option("--timestamp", help="new timestamp")] = None,
+    new_name: Annotated[Optional[str], typer.Option("--name", help="new name")] = None,
+    new_actor: Annotated[Optional[str], typer.Option("--actor", help="new actor")] = None,
+    new_description: Annotated[
+        Optional[str], typer.Option("--description", help="new description")
+    ] = None,
+    interactive: Annotated[
+        bool, typer.Option("-i", "--interactive", help="edit interactively")
+    ] = False,
+):
+    """Edits an action in the tracker."""
+    ts = None
+    try:
+        ts = utils.parse_date(search_criteria)
+    except utils.DateParseError:
+        pass
+    actions = (
+        app.get_actions_for_task_filtered(task_name, start_time=ts, end_time=ts)
+        if ts
+        else app.get_actions_for_task_filtered(task_name, action_name=search_criteria)
+    )
+    if not actions:
+        rich.print(f":x: [red]No action found[/red]")
+        raise typer.Exit(code=GENERIC_FAIL_CODE)
+    if len(actions) > 1:
+        rich.print(f":x: [red]Multiple actions found[/red]")
+        _print_action_list_table(actions)
+        raise typer.Exit(code=-10)
+    orig = actions[0]
+    if interactive:
+        new_task_name = typer.prompt("New Task", default=orig.ref_task.name)
+        new_timestamp = typer.prompt("New Timestamp", default=str(orig.timestamp))
+        new_name = typer.prompt("New Name", default=orig.name)
+        new_actor = typer.prompt("New Actor", default=orig.actor)
+        new_description = typer.prompt("New Description", default=orig.description)
+    changes = {}
+    if new_task_name:
+        changes["task_name"] = new_task_name
+    if new_timestamp:
+        changes["timestamp"] = utils.parse_date(new_timestamp)
+    if new_name:
+        changes["name"] = new_name
+    if new_actor:
+        changes["actor"] = new_actor
+    if new_description:
+        changes["description"] = new_description
+    updated = app.edit_action(orig, changes)
+    if updated:
         rich.print(
-            f":cross_mark: [red]Could not update '{task_name}'[/red]\n"
+            f":heavy_check_mark: [green]Action updated successfully[/green]\n{_rich_action(updated)}"
         )
+    else:
+        rich.print(f":x: [red]Could not update action[/red]")
         raise typer.Exit(code=GENERIC_FAIL_CODE)
         
 

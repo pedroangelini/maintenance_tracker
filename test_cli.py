@@ -275,5 +275,35 @@ def test_delete_action_no_criteria(mock_app, tmp_config_dir):
     """Test delete action without criteria."""
     result = invoke_app(["delete", "action", "TaskName"], tmp_config_dir)
     
-    assert result.exit_code == 0 
+    assert result.exit_code == 0
     assert "No action to delete" in result.stdout
+
+
+def test_get_actions_cli(mock_app, tmp_config_dir):
+    t1 = Task("Task1")
+    a1 = Action(timestamp=datetime.datetime(2023, 1, 1, 10, 0), ref_task=t1, name="A1")
+    mock_app.get_actions_for_task_filtered.return_value = ActionLister([a1])
+    result = invoke_app(["get", "actions", "Task1"], tmp_config_dir)
+    assert result.exit_code == 0
+    assert "found 1 actions" in result.stdout
+
+
+def test_get_single_action_by_name(mock_app, tmp_config_dir):
+    t1 = Task("Task1")
+    a1 = Action(timestamp=datetime.datetime(2023, 1, 1, 10, 0), ref_task=t1, name="Unique")
+    mock_app.get_actions_for_task_filtered.return_value = ActionLister([a1])
+    result = invoke_app(["get", "action", "Task1", "Unique"], tmp_config_dir)
+    assert result.exit_code == 0
+    assert "Unique" in result.stdout
+
+
+def test_edit_action_success(mock_app, tmp_config_dir):
+    t1 = Task("Task1")
+    orig = Action(timestamp=datetime.datetime(2023, 1, 1, 10, 0), ref_task=t1, name="Old")
+    mock_app.get_actions_for_task_filtered.return_value = ActionLister([orig])
+    mock_app.edit_action.return_value = Action(
+        timestamp=datetime.datetime(2023, 1, 1, 10, 0), ref_task=t1, name="New"
+    )
+    result = invoke_app(["edit", "action", "Task1", "Old", "--name", "New"], tmp_config_dir)
+    assert result.exit_code == 0
+    assert "Action updated successfully" in result.stdout

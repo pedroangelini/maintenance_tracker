@@ -3,6 +3,7 @@
 
 
 import logging
+import utils
 from datetime import datetime, timedelta
 from typing import Optional
 
@@ -130,7 +131,7 @@ def get_actions_for_task_filtered(
     end = end_time
 
     if start and not end:
-        end = datetime.now()
+        end = utils.parse_date("now")
     
     if not start and end:
         start = datetime.min
@@ -157,7 +158,7 @@ def record_run(
         return ActionRecordResults.FAILURE
 
     if timestamp is None:
-        timestamp = datetime.now()
+        timestamp = utils.parse_date("now")
 
     action = Action(ref_task=task, timestamp=timestamp, name=action_name, actor=actor)
     result = tracker.record_run(action)
@@ -218,6 +219,35 @@ def get_action(task_name: str, timestamp: datetime) -> Action | None:
     for action in actions:
         if action.timestamp == timestamp:
             return action
+    return None
+
+
+def edit_action(
+    old_action: Action,
+    changes: dict,
+) -> Action | None:
+    """Updates an action by replacing it with a modified version."""
+    global tracker
+
+    if "task_name" in changes:
+        new_task_name = changes.pop("task_name")
+        new_task = get_task_by_name(new_task_name)
+        if not new_task:
+            return None
+        changes["ref_task"] = new_task
+
+    new_action = old_action.replace(changes)
+
+    if new_action == old_action:
+        return old_action
+
+    tracker.delete_run(old_action)
+    result = tracker.record_run(new_action)
+
+    if result in [ActionRecordResults.SUCCESS, ActionRecordResults.TASK_MISMATCH]:
+        tracker.save()
+        return new_action
+
     return None
 
 
