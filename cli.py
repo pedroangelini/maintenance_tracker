@@ -43,8 +43,8 @@ def _rich_task(t: Task) -> str:
     return ret_str
 
 
-def _print_task_list_table(task_list: TaskLister) -> None:
-    table = rich.table.Table(title="Task List")
+def _print_task_list_table(task_list: TaskLister, title: str = "Task List") -> None:
+    table = rich.table.Table(title=title)
 
     table.add_column("Name", justify="left", no_wrap=True)
     table.add_column("Description")
@@ -194,9 +194,10 @@ def list_tasks_cli(
 ):
     if overdue:
         task_list = app.get_overdue_tasks()
+        _print_task_list_table(task_list, title="Overdue Tasks")
     else:
         task_list = app.get_all_tasks()
-    _print_task_list_table(task_list)
+        _print_task_list_table(task_list)
 
 
 @list_app.command("actions", help="Prints a list of actions")
@@ -531,7 +532,7 @@ def report_overdue(
     """Lists overdue tasks"""
     when = utils.parse_date(at) if at else None
     overdue_tasks = app.get_overdue_tasks(when)
-    _print_task_list_table(overdue_tasks)
+    _print_task_list_table(overdue_tasks, title="Overdue Tasks")
 
 @report_app.command("next")
 def report_next(
@@ -552,7 +553,8 @@ def report_next(
     when = utils.parse_date(at) if at else None
     next_runs = app.get_next_runs(target_task, when)
     
-    table = rich.table.Table(title="Next Runs")
+    title = "Next Scheduled Task" if target_task else "Next Scheduled Tasks"
+    table = rich.table.Table(title=title)
     table.add_column("Task", justify="left", no_wrap=True)
     table.add_column("Next Run", justify="right", style="green")
     
