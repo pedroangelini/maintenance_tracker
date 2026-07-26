@@ -117,19 +117,19 @@ Running `mtnt` without a subcommand checks the current configuration's data dire
 
 ### Record the run of a task
 
-`mtnt record [run] <task_name> [now|<action_timestamp>] [<action_name>] [<actor>]`
+`mtnt record [run] <task_name> <actor> [--timestamp|<action_timestamp>] [<action_name>]`
 
 or
 
-`mtnt add action <task_name> [now|<action_timestamp>] [<action_name>] [<actor>]`
+`mtnt add action <task_name> <actor> [--timestamp|<action_timestamp>] [<action_name>]`
 
 | Argument | Description |
 |---|---|
 | `run` | optional, doesn't do anything |
 | `task_name` | The name of the task |
-| `action_timestamp` | The time the action was executed |
+| `actor` | name of the person who did the action |
+| `action_timestamp` | The time the action was executed (optional, defaults to now) |
 | `action_name` | A name for the action (optional) |
-| `actor` | name of the person who did the action (optional) |
 
 ### List tasks
 

@@ -67,16 +67,16 @@ def _print_action_list_table(action_list: ActionLister) -> None:
     table = rich.table.Table(title="Action List")
 
     table.add_column("Task", justify="left", no_wrap=True)
-    table.add_column("Action Name")
+    table.add_column("Actor", justify="left", style="blue")
     table.add_column("Timestamp", justify="right", style="green")
-    table.add_column("Actor", justify="right", style="blue")
+    table.add_column("Action Name")
 
     for a in action_list:
         table.add_row(
             a.ref_task.name,
-            a.name,
-            utils.human_date_str(a.timestamp),
             a.actor,
+            utils.human_date_str(a.timestamp),
+            a.name,
         )
 
     console = rich.console.Console()
@@ -138,18 +138,18 @@ def add_task(
 @add_app.command("action")
 def add_action(
     task_name: Annotated[str, typer.Argument(help="name of the task to record an action for")],
+    actor: Annotated[
+        Optional[str], typer.Argument(help="name of the person who did the action")
+    ] = "",
     timestamp: Annotated[
         Optional[str], typer.Option(help="timestamp of the action, defaults to now")
     ] = None,
     action_name: Annotated[
         Optional[str], typer.Argument(help="name of the action")
     ] = "",
-    actor: Annotated[
-        Optional[str], typer.Argument(help="name of the person who did the action")
-    ] = "",
 ):
     """Adds an action to the tracker (alias for record run)."""
-    record_run(task_name, timestamp, action_name, actor)
+    record_run(task_name, actor, timestamp, action_name)
 
 
 ########################################
@@ -160,14 +160,14 @@ def add_action(
 @record_app.command("run")
 def record_run(
     task_name: Annotated[str, typer.Argument(help="name of the task to record an action for")],
+    actor: Annotated[
+        Optional[str], typer.Argument(help="name of the person who did the action")
+    ] = "",
     timestamp: Annotated[
         Optional[str], typer.Option(help="timestamp of the action, defaults to now")
     ] = None,
     action_name: Annotated[
         Optional[str], typer.Argument(help="name of the action")
-    ] = "",
-    actor: Annotated[
-        Optional[str], typer.Argument(help="name of the person who did the action")
     ] = "",
 ):
     """Records an action for a task."""
