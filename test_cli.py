@@ -1,4 +1,5 @@
 import datetime
+from datetime import UTC
 from unittest.mock import MagicMock, patch
 from pathlib import Path
 
@@ -36,12 +37,12 @@ def mock_rich_console():
 def tmp_config_dir(tmp_path):
     return tmp_path / "config"
 
-def invoke_app(args, config_dir):
+def invoke_app(args, config_dir, input=None):
     """Helper to invoke app with config dir before subcommand"""
     # args is like ["add", "task", ...]
     # We want ["--config-dir", str(config_dir)] + args
     full_args = ["--config-dir", str(config_dir)] + args
-    return runner.invoke(typer_app, full_args)
+    return runner.invoke(typer_app, full_args, input=input)
 
 def test_add_task_success(mock_app, tmp_config_dir):
     """Test adding a task successfully."""
@@ -321,4 +322,61 @@ def test_report_actions(mock_app, tmp_config_dir):
     result = invoke_app(["report", "actions", "--at", "2024-05", "--for", "MyTask"], tmp_config_dir)
     assert result.exit_code == 0
     mock_app.get_actions_by_time.assert_called()
+
+    # Test report actions without options
+    result_default = invoke_app(["report", "actions"], tmp_config_dir)
+    assert result_default.exit_code == 0
+
+
+def test_edit_task_interactive_and_partial(mock_app, tmp_config_dir):
+    """Test interactive task editing and partial field updates."""
+    original = Task("Original", start_time=datetime.datetime(2024, 1, 1, tzinfo=UTC), interval=datetime.timedelta(days=1), description="Desc")
+    mock_app.get_task_by_name.return_value = original
+    mock_app.edit_task.return_value = Task("Original", description="NewDesc")
+
+    # Partial update with positional arguments
+    result = invoke_app([
+        "edit", "task", "Original",
+        "2024-01-02",
+        "2days",
+        "NewDesc"
+    ], tmp_config_dir)
+    assert result.exit_code == 0
+    mock_app.edit_task.assert_called()
+
+    # Interactive update with prompts
+    result_interactive = invoke_app(
+        ["edit", "task", "Original", "-i"],
+        tmp_config_dir,
+        input="2024-01-02\n2days\nNewDesc\nRenamed\n"
+    )
+    assert result_interactive.exit_code == 0
+
+
+def test_delete_action_zero_deleted(mock_app, tmp_config_dir):
+    """Test delete action output when 0 actions are deleted."""
+    mock_app.delete_action.return_value = 0
+    result = invoke_app(["delete", "action", "TaskName", "--action-name", "ActionName"], tmp_config_dir)
+    assert result.exit_code == 0
+    assert "No actions were deleted" in result.stdout
+
+
+def test_report_next_positional_task(mock_app, tmp_config_dir):
+    """Test report next with positional task argument."""
+    task = Task("PositionalTask")
+    mock_app.get_next_runs.return_value = [(task, datetime.datetime(2024, 1, 2, 10, 0, tzinfo=UTC))]
+    result = invoke_app(["report", "next", "PositionalTask"], tmp_config_dir)
+    assert result.exit_code == 0
+    assert "PositionalTask" in result.stdout
+    mock_app.get_next_runs.assert_called_with("PositionalTask", None)
+
+
+
+def test_report_tasks_default(mock_app, tmp_config_dir):
+    """Test report tasks command without criteria."""
+    mock_app.get_all_tasks.return_value = TaskLister([Task("AllTask")])
+    result = invoke_app(["report", "tasks"], tmp_config_dir)
+    assert result.exit_code == 0
+    assert "AllTask" in result.stdout
+
 
