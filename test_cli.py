@@ -145,6 +145,38 @@ def test_list_tasks_overdue(mock_app, tmp_config_dir):
     mock_app.get_overdue_tasks.assert_called_once()
 
 
+def test_no_args_shows_help_when_database_does_not_exist(mock_app, tmp_config_dir):
+    """The first run keeps the existing no-argument help behavior."""
+    result = invoke_app([], tmp_config_dir)
+
+    assert result.exit_code == 0
+    assert "Usage:" in result.stdout
+    mock_app.get_overdue_tasks.assert_not_called()
+    mock_app.get_next_runs.assert_not_called()
+
+
+def test_no_args_shows_dashboard_when_database_exists(mock_app, tmp_config_dir):
+    """An existing database opens the overdue and next-task overview."""
+    tmp_config_dir.mkdir(parents=True)
+    (tmp_config_dir / "task_list.json").write_text("[]", encoding="utf8")
+    overdue_task = Task("OverdueTask")
+    next_task = Task("NextTask")
+    mock_app.get_overdue_tasks.return_value = TaskLister([overdue_task])
+    mock_app.get_next_runs.return_value = [
+        (next_task, datetime.datetime(2024, 1, 2, 10, 0, tzinfo=UTC))
+    ]
+
+    result = invoke_app([], tmp_config_dir)
+
+    assert result.exit_code == 0
+    assert "overdue tasks" in result.stdout
+    assert "OverdueTask" in result.stdout
+    assert "next expected tasks" in result.stdout
+    assert "NextTask" in result.stdout
+    mock_app.get_overdue_tasks.assert_called_once_with()
+    mock_app.get_next_runs.assert_called_once_with(None, None)
+
+
 def test_list_actions_all(mock_app, tmp_config_dir):
     """Test listing all actions."""
     t1 = Task("Task1")
@@ -403,4 +435,3 @@ def test_report_actions_between_filters_by_task(mock_app, tmp_config_dir):
     assert result.exit_code == 0
     assert "completed" in result.stdout
     assert mock_app.get_actions_by_time.call_args.args[2] == "TaskName"
-

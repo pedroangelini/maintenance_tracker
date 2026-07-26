@@ -7,7 +7,7 @@ the `mtnt` command is not installed, use `uv run python main.py` in place of
 
 ```sh
 export MTNT_TEST_DIR="$(mktemp -d)"
-alias mtnt='uv run python main.py'
+alias mtnt='uv run python main.py --config-dir "$MTNT_TEST_DIR"'
 mtnt --config-dir "$MTNT_TEST_DIR" --help
 ```
 

@@ -424,6 +424,14 @@ def report_next(
     console = rich.console.Console()
     console.print(table)
 
+
+def show_dashboard() -> None:
+    """Print the default overview for an existing tracker database."""
+    rich.print("[bold]overdue tasks[/bold]")
+    list_tasks_cli(overdue=True)
+    rich.print("[bold]next expected tasks[/bold]")
+    report_next()
+
 @report_app.command("tasks")
 def report_tasks(
     run: Annotated[Optional[str], typer.Argument()] = None,

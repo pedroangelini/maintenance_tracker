@@ -17,11 +17,13 @@ from typing_extensions import Annotated
 from cli import *
 from config import config, APP_NAME
 from app import tracker
+from core import DEFAULT_TASK_LIST_FILE
 
 logger = logging.getLogger(__name__)
 
 typer_app = typer.Typer(
-    no_args_is_help=True,
+    no_args_is_help=False,
+    invoke_without_command=True,
     # help=,
     name="mtnt: the simple Maintenance Tracker",
 )
@@ -38,6 +40,7 @@ typer_app.add_typer(report_app, name="report")
 
 @typer_app.callback()
 def main(
+    ctx: typer.Context,
     verbose: bool = False,
     config_dir: Annotated[
         Optional[str], typer.Option(help="directory to store configs")
@@ -62,8 +65,18 @@ def main(
     logger.info(f"config directory: {dir_path}")
 
     logger.info(f"loading tracker from path: {Path(config.data_dir)}")
+    # Check before loading: loading a tracker initializes its JSON files when they
+    # do not yet exist.  This preserves the first-run help behavior.
+    database_exists = (Path(config.data_dir) / DEFAULT_TASK_LIST_FILE).is_file()
+
     app.tracker = MaintenanceTracker(load=True, save_dir=config.data_dir)
     logger.debug(f"{tracker}")
+
+    if ctx.invoked_subcommand is None:
+        if database_exists:
+            show_dashboard()
+        else:
+            typer.echo(ctx.get_help())
 
 
 if __name__ == "__main__":

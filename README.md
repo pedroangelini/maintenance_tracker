@@ -99,6 +99,10 @@ mtnt [--verbose] [--config_dir <non-default-dir>]
 - `--verbose` - show info logs
 - `--config_dir` - sets a different configuration directory
 
+### Default dashboard
+
+Running `mtnt` without a subcommand checks the current configuration's data directory. If it already contains a tracker database, it prints a bold **overdue tasks** heading followed by the same task list as `mtnt list tasks --overdue`, then a bold **next expected tasks** heading followed by the same report as `mtnt report next`. On first use, when no database exists yet, it continues to show the command help.
+
 ### Add a task to the list:
 
 `mtnt add task [-i| --interactive | <task_name> <start_time> <periodicity> <description>]`
