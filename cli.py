@@ -253,6 +253,60 @@ def get_task(name: Annotated[str, typer.Argument()]):
     rich.print(t)
 
 
+@get_app.command(
+    "actions",
+    no_args_is_help=True,
+)
+def get_actions(
+    task_name: Annotated[str, typer.Argument(help="name of the task")],
+):
+    """get all actions for a task"""
+    action_list = app.get_actions_for_task_filtered(task_name)
+    if len(action_list) > 0:
+        _print_action_list_table(action_list)
+    else:
+        rich.print(f"No actions found for task '{task_name}'")
+
+
+@get_app.command(
+    "action",
+    no_args_is_help=True,
+)
+def get_action(
+    task_name: Annotated[str, typer.Argument(help="name of the task")],
+    action_ref: Annotated[
+        Optional[str], typer.Argument(help="action timestamp or name to search for")
+    ] = None,
+):
+    """get a specific action for a task"""
+    if action_ref is None:
+        rich.print(":x: [red]Must provide an action timestamp or name[/red]")
+        raise typer.Exit(code=GENERIC_FAIL_CODE)
+    
+    # Try parsing as timestamp first
+    try:
+        timestamp = utils.parse_date(action_ref)
+        action = app.get_action(task_name, timestamp)
+        if action:
+            rich.print(f"Actor: {action.actor}\nTimestamp: {utils.human_date_str(action.timestamp)}\nAction Name: {action.name}\nTask: {action.ref_task.name}")
+        else:
+            rich.print(f":x: [red]Action not found[/red]")
+            raise typer.Exit(code=GENERIC_FAIL_CODE)
+    except Exception:
+        # If timestamp parsing fails, try as action name
+        action_list = app.get_actions_for_task_filtered(task_name, action_name=action_ref)
+        if len(action_list) == 0:
+            rich.print(f":x: [red]No action found with name '{action_ref}'[/red]")
+            raise typer.Exit(code=GENERIC_FAIL_CODE)
+        elif len(action_list) == 1:
+            action = action_list[0]
+            rich.print(f"Actor: {action.actor}\nTimestamp: {utils.human_date_str(action.timestamp)}\nAction Name: {action.name}\nTask: {action.ref_task.name}")
+        else:
+            rich.print(f":x: [red]Multiple actions found with name '{action_ref}'. Please provide more specific criteria (timestamp).[/red]")
+            _print_action_list_table(action_list)
+            raise typer.Exit(code=-10)
+
+
 ########################################
 # edit app
 ########################################
@@ -328,8 +382,92 @@ def edit_task(
             f":cross_mark: [red]Could not update '{task_name}'[/red]\n"
         )
         raise typer.Exit(code=GENERIC_FAIL_CODE)
-        
 
+
+@edit_app.command(
+    "action",
+    no_args_is_help=True,
+)
+def edit_action(
+    task_name: Annotated[str, typer.Argument(help="name of the task of the action")],
+    action_ref: Annotated[
+        Optional[str], typer.Argument(help="action timestamp or name to identify which action to edit")
+    ] = None,
+    new_actor: Annotated[
+        Optional[str], typer.Argument(help="new actor name")
+    ] = None,
+    new_timestamp: Annotated[
+        Optional[str], typer.Argument(help="new timestamp for the action")
+    ] = None,
+    new_action_name: Annotated[
+        Optional[str], typer.Argument(help="new name for the action")
+    ] = None,
+    new_task_name: Annotated[
+        Optional[str], typer.Argument(help="new task name for the action")
+    ] = None,
+    interactive: Annotated[
+        bool, typer.Option("-i", "--interactive", help="edit action interactively")
+    ] = False,
+):
+    """Edits an action in the tracker"""
+    if action_ref is None:
+        rich.print(":x: [red]Must provide an action timestamp or name[/red]")
+        raise typer.Exit(code=GENERIC_FAIL_CODE)
+    
+    try:
+        # Get the original action for interactive mode
+        actions = app.get_actions_for_task_filtered(task_name)
+        original_action = None
+        
+        # Try to find by timestamp first
+        try:
+            timestamp = utils.parse_date(action_ref)
+            original_action = app.get_action(task_name, timestamp)
+        except Exception:
+            # Try by name
+            for action in actions:
+                if action.name == action_ref:
+                    original_action = action
+                    break
+        
+        if original_action is None:
+            rich.print(f":x: [red]Action not found[/red]")
+            raise typer.Exit(code=GENERIC_FAIL_CODE)
+        
+        if interactive:
+            logger.info("interactively editing action")
+            if new_actor is None:
+                new_actor = typer.prompt("New Actor", type=str, default=original_action.actor)
+            if new_timestamp is None:
+                new_timestamp = typer.prompt("New Timestamp", type=str, default=utils.human_date_str(original_action.timestamp))
+            if new_action_name is None:
+                new_action_name = typer.prompt("New Action Name", type=str, default=original_action.name)
+            if new_task_name is None:
+                new_task_name = typer.prompt("New Task Name", type=str, default=original_action.ref_task.name)
+        
+        # Parse the new values
+        parsed_timestamp = utils.parse_date(new_timestamp) if new_timestamp else None
+        
+        # Edit the action
+        updated_action = app.edit_action(
+            task_name,
+            action_ref,
+            new_actor=new_actor,
+            new_timestamp=parsed_timestamp,
+            new_action_name=new_action_name,
+            new_task_name=new_task_name,
+        )
+        
+        if updated_action is not None:
+            rich.print(f":heavy_check_mark: [green]Action updated successfully[/green]")
+            rich.print(f"Actor: {updated_action.actor}\nTimestamp: {utils.human_date_str(updated_action.timestamp)}\nAction Name: {updated_action.name}\nTask: {updated_action.ref_task.name}")
+        else:
+            rich.print(f":x: [red]Could not update action[/red]")
+            raise typer.Exit(code=GENERIC_FAIL_CODE)
+    except ValueError as e:
+        rich.print(f":x: [red]{str(e)}[/red]")
+        raise typer.Exit(code=GENERIC_FAIL_CODE)
+        
 
 ########################################
 # delete app

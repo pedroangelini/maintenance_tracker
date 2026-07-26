@@ -254,3 +254,61 @@ def get_action(task_name: str, timestamp: datetime) -> Action | None:
 
 
 
+
+
+def edit_action(
+    task_name: str,
+    action_ref: str,
+    new_actor: str | None = None,
+    new_timestamp: datetime | None = None,
+    new_action_name: str | None = None,
+    new_task_name: str | None = None,
+) -> Action | None:
+    """Edits an action. Returns the updated action or None if not found."""
+    global tracker
+    
+    # Find the action to edit
+    actions_to_edit = []
+    try:
+        # Try parsing as timestamp first
+        timestamp = utils.parse_date(action_ref)
+        action = get_action(task_name, timestamp)
+        if action:
+            actions_to_edit.append(action)
+    except Exception:
+        # If timestamp parsing fails, try as action name
+        action_list = get_actions_for_task_filtered(task_name, action_name=action_ref)
+        actions_to_edit = list(action_list)
+    
+    if len(actions_to_edit) == 0:
+        return None
+    elif len(actions_to_edit) > 1:
+        raise ValueError(f"Multiple actions found matching '{action_ref}'. Please provide a timestamp for disambiguation.")
+    
+    old_action = actions_to_edit[0]
+    
+    # Build the updated action
+    updated_fields = {}
+    if new_actor is not None:
+        updated_fields['actor'] = new_actor
+    if new_timestamp is not None:
+        updated_fields['timestamp'] = new_timestamp
+    if new_action_name is not None:
+        updated_fields['name'] = new_action_name
+    if new_task_name is not None:
+        new_task = get_task_by_name(new_task_name)
+        if new_task is None:
+            raise ValueError(f"Task '{new_task_name}' not found")
+        updated_fields['ref_task'] = new_task
+    
+    new_action = old_action.replace(updated_fields)
+    
+    # Delete old action and add new one
+    tracker.delete_run(old_action)
+    result = tracker.record_run(new_action)
+    
+    if result in [ActionRecordResults.SUCCESS, ActionRecordResults.TASK_MISMATCH]:
+        tracker.save()
+        return new_action
+    
+    return None
