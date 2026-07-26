@@ -380,3 +380,27 @@ def test_report_tasks_default(mock_app, tmp_config_dir):
     assert "AllTask" in result.stdout
 
 
+def test_report_next_accepts_literal_run(mock_app, tmp_config_dir):
+    mock_app.get_next_runs.return_value = []
+
+    result = invoke_app(["report", "next", "run"], tmp_config_dir)
+
+    assert result.exit_code == 0
+    mock_app.get_next_runs.assert_called_once_with(None, None)
+
+
+def test_report_actions_between_filters_by_task(mock_app, tmp_config_dir):
+    task = Task("TaskName")
+    mock_app.get_actions_by_time.return_value = ActionLister(
+        [Action(datetime.datetime(2024, 1, 2, tzinfo=UTC), task, "completed")]
+    )
+
+    result = invoke_app(
+        ["report", "actions", "--between", "2024-01-01", "2024-01-03", "--for", "TaskName"],
+        tmp_config_dir,
+    )
+
+    assert result.exit_code == 0
+    assert "completed" in result.stdout
+    assert mock_app.get_actions_by_time.call_args.args[2] == "TaskName"
+
