@@ -14,6 +14,7 @@ from utils import (
     human_interval_str,
     parse_date,
     parse_interval,
+    parse_partial_timestamp,
 )
 
 
@@ -208,3 +209,10 @@ def test_parse_partial_timestamp():
     assert start == datetime(2024, 5, 15, 14, 0, 0, tzinfo=UTC)
     assert end == datetime(2024, 5, 15, 14, 59, 59, 999999, tzinfo=UTC)
 
+
+@pytest.mark.parametrize("value", ["2024-05-15 14:30", "2024-05-15T14:30"])
+def test_parse_partial_timestamp_minute_precision(value):
+    start, end = parse_partial_timestamp(value)
+
+    assert start == datetime(2024, 5, 15, 14, 30, 0, tzinfo=UTC)
+    assert end == datetime(2024, 5, 15, 14, 30, 59, 999999, tzinfo=UTC)
