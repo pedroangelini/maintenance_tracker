@@ -397,3 +397,36 @@ def test_record_run_default_timestamp(task1):
     assert len(app.tracker.action_list) == 1
 
 
+def test_get_actions_by_time_without_task_filter(task1, action1_t1, action2_t1):
+    app.register_task(task1)
+    registered_task = app.get_task_by_name(task1.name)
+    app.tracker.record_run(action1_t1.replace({"ref_task": registered_task}))
+    app.tracker.record_run(action2_t1.replace({"ref_task": registered_task}))
+
+    actions = app.get_actions_by_time(
+        datetime(2024, 1, 1, 12, 0, tzinfo=UTC),
+        datetime(2024, 1, 2, 12, 0, tzinfo=UTC),
+    )
+
+    assert len(actions) == 1
+    assert actions[0].timestamp == datetime(2024, 1, 2, 6, 0, tzinfo=UTC)
+
+
+def test_delete_action_with_no_matches_does_not_save(task1):
+    app.register_task(task1)
+
+    with patch("app.tracker.save") as mock_save:
+        deleted = app.delete_action(task1.name, action_name="missing")
+
+    assert deleted == 0
+    mock_save.assert_not_called()
+
+
+def test_get_next_runs_ignores_unknown_and_unscheduled_tasks(task1):
+    app.register_task(task1)
+    app.register_task(Task("one-off", start_time=None, interval=None))
+    at_time = datetime(2024, 1, 1, 12, 0, tzinfo=UTC)
+
+    assert app.get_next_runs(for_task="missing", at=at_time) == []
+    assert [task.name for task, _ in app.get_next_runs(at=at_time)] == [task1.name]
+
