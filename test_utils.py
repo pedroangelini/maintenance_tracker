@@ -184,3 +184,27 @@ def test_human_date_str(delta, expected):
         else:
             test_input = datetime.now() + delta
         assert human_date_str(test_input, when_now=frozen_time) == expected
+
+
+def test_parse_partial_timestamp():
+    from utils import parse_partial_timestamp, UTC
+    # Year
+    start, end = parse_partial_timestamp("2024")
+    assert start == datetime(2024, 1, 1, 0, 0, 0, tzinfo=UTC)
+    assert end == datetime(2024, 12, 31, 23, 59, 59, 999999, tzinfo=UTC)
+
+    # Month
+    start, end = parse_partial_timestamp("2024-05")
+    assert start == datetime(2024, 5, 1, 0, 0, 0, tzinfo=UTC)
+    assert end == datetime(2024, 5, 31, 23, 59, 59, 999999, tzinfo=UTC)
+
+    # Day
+    start, end = parse_partial_timestamp("2024-05-15")
+    assert start == datetime(2024, 5, 15, 0, 0, 0, tzinfo=UTC)
+    assert end == datetime(2024, 5, 15, 23, 59, 59, 999999, tzinfo=UTC)
+
+    # Hour
+    start, end = parse_partial_timestamp("2024-05-15 14")
+    assert start == datetime(2024, 5, 15, 14, 0, 0, tzinfo=UTC)
+    assert end == datetime(2024, 5, 15, 14, 59, 59, 999999, tzinfo=UTC)
+

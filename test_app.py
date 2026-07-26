@@ -312,3 +312,47 @@ def test_get_action(task1):
 
     assert app.get_action("non-existent task", timestamp) is None
     assert app.get_action(task1.name, datetime(2026, 1, 1, tzinfo=UTC)) is None
+
+
+def test_get_overdue_tasks_with_at(task1):
+    # task1 has start_time 2024-01-01 10:00, interval 1 day
+    app.register_task(task1)
+    # Check overdue at 2024-01-03 without recorded actions
+    at_time = datetime(2024, 1, 3, 12, 0, tzinfo=UTC)
+    overdue = app.get_overdue_tasks(at=at_time)
+    assert len(overdue) == 1
+    assert overdue[0].name == task1.name
+
+
+def test_get_next_runs(task1):
+    app.register_task(task1)
+    at_time = datetime(2024, 1, 1, 12, 0, tzinfo=UTC)
+    next_runs = app.get_next_runs(for_task=task1.name, at=at_time)
+    assert len(next_runs) == 1
+    t, next_run = next_runs[0]
+    assert t.name == task1.name
+    assert next_run > at_time
+
+    # Test all tasks
+    all_next_runs = app.get_next_runs(at=at_time)
+    assert len(all_next_runs) == 1
+
+
+def test_get_actions_by_time_filtered(task1, action1_t1, action2_t1):
+    app.register_task(task1)
+    t1 = app.get_task_by_name(task1.name)
+    a1 = action1_t1.replace({"ref_task": t1})
+    a2 = action2_t1.replace({"ref_task": t1})
+    app.tracker.record_run(a1)
+    app.tracker.record_run(a2)
+
+    start = datetime(2024, 1, 1, 12, 0, tzinfo=UTC)
+    end = datetime(2024, 1, 2, 12, 0, tzinfo=UTC)
+
+    actions = app.get_actions_by_time(start, end, task_name=task1.name)
+    assert len(actions) == 1
+    assert actions[0] == a2
+
+    actions_nonexistent = app.get_actions_by_time(start, end, task_name="nonexistent")
+    assert len(actions_nonexistent) == 0
+

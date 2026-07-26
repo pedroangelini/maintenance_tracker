@@ -165,14 +165,44 @@ def record_run(
         tracker.save()
     return result
 
-def get_overdue_tasks() -> TaskLister:
-    """Returns a list of overdue tasks."""
+def get_overdue_tasks(at: datetime | None = None) -> TaskLister:
+    """Returns a list of overdue tasks at a specific time."""
     global tracker
     overdue_tasks = TaskLister()
     for task in tracker.task_list:
-        if tracker.check_overdue(task):
+        if tracker.check_overdue(task, at):
             overdue_tasks.append(task)
     return overdue_tasks
+
+def get_next_runs(for_task: str | None = None, at: datetime | None = None) -> list[tuple[Task, datetime]]:
+    """Gets next runs for tasks"""
+    global tracker
+    next_runs = []
+    
+    if for_task:
+        task = tracker.task_list.get_task_by_name(for_task)
+        if task:
+            next_run = task.get_programmed_time(n=1, when=at)
+            if next_run:
+                next_runs.append((task, next_run))
+    else:
+        for task in tracker.task_list:
+            next_run = task.get_programmed_time(n=1, when=at)
+            if next_run:
+                next_runs.append((task, next_run))
+    
+    return next_runs
+
+def get_actions_by_time(start_time: datetime, end_time: datetime, task_name: str | None = None) -> ActionLister:
+    """Gets actions within a time range, optionally filtered by task"""
+    global tracker
+    if task_name:
+        task = tracker.task_list.get_task_by_name(task_name)
+        if not task:
+            return ActionLister([])
+        return tracker.get_actions_for_task(task, start_time, end_time)
+    else:
+        return tracker.get_actions_by_time(start_time, end_time)
 
 def delete_task(task_name: str) -> TaskRecordResults:
     """Deletes a task."""

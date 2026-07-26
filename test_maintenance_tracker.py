@@ -283,3 +283,18 @@ def test_get_actions_by_time(task1, action1_t1, action2_t1):
     # Test with no end time (defaults to now)
     actions_no_end = mtnt.get_actions_by_time(start_time=datetime(2023, 1, 1, 0, 0, tzinfo=UTC))
     assert len(actions_no_end) == 2
+
+
+def test_get_actions_for_task_time_filter(task1, action1_t1, action2_t1):
+    mtnt = MaintenanceTracker()
+    mtnt.register_task(task1)
+    mtnt.record_run(action1_t1)  # 2024-01-01
+    mtnt.record_run(action2_t1)  # 2024-01-02
+
+    start_time = datetime(2024, 1, 1, 12, 0, tzinfo=UTC)
+    end_time = datetime(2024, 1, 2, 12, 0, tzinfo=UTC)
+
+    actions = mtnt.get_actions_for_task(task1, start_time=start_time, end_time=end_time)
+    assert len(actions) == 1
+    assert actions[0] == action2_t1
+
