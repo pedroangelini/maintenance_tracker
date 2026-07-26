@@ -277,3 +277,48 @@ def test_delete_action_no_criteria(mock_app, tmp_config_dir):
     
     assert result.exit_code == 0 
     assert "No action to delete" in result.stdout
+
+
+def test_report_overdue(mock_app, tmp_config_dir):
+    """Test report overdue command."""
+    mock_app.get_overdue_tasks.return_value = TaskLister([Task("OverdueTask")])
+    result = invoke_app(["report", "overdue", "--at", "2024-01-01"], tmp_config_dir)
+    assert result.exit_code == 0
+    assert "OverdueTask" in result.stdout
+    mock_app.get_overdue_tasks.assert_called_once()
+
+
+def test_report_next(mock_app, tmp_config_dir):
+    """Test report next command."""
+    from datetime import datetime, UTC
+    task = Task("NextTask")
+    mock_app.get_next_runs.return_value = [(task, datetime(2024, 1, 2, 10, 0, tzinfo=UTC))]
+    result = invoke_app(["report", "next", "--for", "NextTask"], tmp_config_dir)
+    assert result.exit_code == 0
+    assert "NextTask" in result.stdout
+    mock_app.get_next_runs.assert_called_once()
+
+
+def test_report_tasks(mock_app, tmp_config_dir):
+    """Test report tasks command with --at and --between."""
+    mock_app.get_tasks_by_time.return_value = TaskLister([Task("ReportTask")])
+    
+    # Test --at
+    result = invoke_app(["report", "tasks", "--at", "2024-05"], tmp_config_dir)
+    assert result.exit_code == 0
+    assert "ReportTask" in result.stdout
+
+    # Test --between
+    result_bt = invoke_app(["report", "tasks", "--between", "2024-01-01", "2024-01-31"], tmp_config_dir)
+    assert result_bt.exit_code == 0
+    assert "ReportTask" in result_bt.stdout
+
+
+def test_report_actions(mock_app, tmp_config_dir):
+    """Test report actions command."""
+    mock_app.get_actions_by_time.return_value = ActionLister([])
+    
+    result = invoke_app(["report", "actions", "--at", "2024-05", "--for", "MyTask"], tmp_config_dir)
+    assert result.exit_code == 0
+    mock_app.get_actions_by_time.assert_called()
+

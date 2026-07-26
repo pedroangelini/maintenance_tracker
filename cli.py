@@ -383,6 +383,106 @@ def delete_action(
 # report app
 ########################################
 
+@report_app.command("overdue")
+def report_overdue(
+    at: Annotated[
+        Optional[str], 
+        typer.Option("--at", help="check for overdues at the given timestamp")
+    ] = None
+):
+    """Lists overdue tasks"""
+    when = utils.parse_date(at) if at else None
+    overdue_tasks = app.get_overdue_tasks(when)
+    _print_task_list_table(overdue_tasks)
+
+@report_app.command("next")
+def report_next(
+    run: Annotated[Optional[str], typer.Argument()] = None,
+    for_task: Annotated[
+        Optional[str], 
+        typer.Option("--for", help="get next run for a specific task")
+    ] = None,
+    at: Annotated[
+        Optional[str], 
+        typer.Option("--at", help="check next runs at the given timestamp")
+    ] = None
+):
+    """Gets next runs for tasks"""
+    target_task = for_task
+    if not target_task and run and run != "run":
+        target_task = run
+    when = utils.parse_date(at) if at else None
+    next_runs = app.get_next_runs(target_task, when)
+    
+    table = rich.table.Table(title="Next Runs")
+    table.add_column("Task", justify="left", no_wrap=True)
+    table.add_column("Next Run", justify="right", style="green")
+    
+    for task, next_run in next_runs:
+        table.add_row(task.name, utils.human_date_str(next_run))
+    
+    console = rich.console.Console()
+    console.print(table)
+
+@report_app.command("tasks")
+def report_tasks(
+    run: Annotated[Optional[str], typer.Argument()] = None,
+    at: Annotated[
+        Optional[str], 
+        typer.Option("--at", help="list tasks for a specific time period")
+    ] = None,
+    between: Annotated[
+        Optional[tuple[str, str]], 
+        typer.Option("--between", help="list tasks between two timestamps")
+    ] = None
+):
+    """Lists tasks based on time criteria"""
+    if at:
+        start, end = utils.parse_partial_timestamp(at)
+        tasks = app.get_tasks_by_time(start, end)
+        _print_task_list_table(tasks)
+    elif between and len(between) == 2:
+        start = utils.parse_date(between[0])
+        end = utils.parse_date(between[1])
+        tasks = app.get_tasks_by_time(start, end)
+        _print_task_list_table(tasks)
+    else:
+        tasks = app.get_all_tasks()
+        _print_task_list_table(tasks)
+
+@report_app.command("actions")
+def report_actions(
+    run: Annotated[Optional[str], typer.Argument()] = None,
+    at: Annotated[
+        Optional[str], 
+        typer.Option("--at", help="list actions for a specific time period")
+    ] = None,
+    between: Annotated[
+        Optional[tuple[str, str]], 
+        typer.Option("--between", help="list actions between two timestamps")
+    ] = None,
+    for_task: Annotated[
+        Optional[str], 
+        typer.Option("--for", help="filter actions for a specific task")
+    ] = None
+):
+    """Lists actions based on criteria"""
+    if at:
+        start, end = utils.parse_partial_timestamp(at)
+        actions = app.get_actions_by_time(start, end, for_task)
+        _print_action_list_table(actions)
+    elif between and len(between) == 2:
+        start = utils.parse_date(between[0])
+        end = utils.parse_date(between[1])
+        actions = app.get_actions_by_time(start, end, for_task)
+        _print_action_list_table(actions)
+    else:
+        start = datetime.min.replace(tzinfo=UTC)
+        end = datetime.max.replace(tzinfo=UTC)
+        actions = app.get_actions_by_time(start, end, for_task)
+        _print_action_list_table(actions)
+
+
 ########################################
 # footer
 ########################################

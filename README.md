@@ -87,11 +87,11 @@ mtnt [--verbose] [--config_dir <non-default-dir>]
  |-- ✔️ delete
  |    |-- ✔️ task
  |    |-- ✔️ action
- |-- ❌ report
-      |-- overdue
-      |-- next [run]
-      |-- tasks
-      |-- actions
+ |-- ✔️ report
+      |-- ✔️ overdue
+      |-- ✔️ next [run]
+      |-- ✔️ tasks
+      |-- ✔️ actions
 ```
 
 ### Global Options
