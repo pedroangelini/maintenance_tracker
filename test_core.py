@@ -209,6 +209,25 @@ def test_task_lister_collision(task1: Task):
         lst = lst + [t2]
 
 
+def test_task_rejects_empty_name_and_lister_rejects_none_name():
+    with pytest.raises(ValueError, match="name cannot be None"):
+        Task(name=None)
+
+    with pytest.raises(ValueError, match="name passed as None"):
+        TaskLister()._check_task_name_available(None)
+
+
+def test_one_off_task_programmed_times():
+    start = datetime(2024, 1, 2, 10, 0, tzinfo=UTC)
+    task = Task("one-off", start_time=start, interval=timedelta(0))
+
+    assert task.get_programmed_time(1, when=datetime(2024, 1, 1, tzinfo=UTC)) == start
+    assert task.get_programmed_time(-1, when=datetime(2024, 1, 3, tzinfo=UTC)) == start
+    assert task.get_all_programmed_times(
+        timedelta(days=2), when=datetime(2024, 1, 1, tzinfo=UTC)
+    ) == [start]
+
+
 @pytest.mark.parametrize(
     "task,when,n,expected_prog_time",
     [
@@ -467,4 +486,3 @@ def test_persister_constructors(tmp_path: Path):
 def test_task_lister_get_task_by_name_not_found(task1):
     lister = TaskLister([task1])
     assert lister.get_task_by_name("non-existent task") is None
-
