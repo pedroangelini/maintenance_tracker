@@ -356,3 +356,44 @@ def test_get_actions_by_time_filtered(task1, action1_t1, action2_t1):
     actions_nonexistent = app.get_actions_by_time(start, end, task_name="nonexistent")
     assert len(actions_nonexistent) == 0
 
+
+def test_get_all_actions(task1, action1_t1):
+    app.register_task(task1)
+    t1 = app.get_task_by_name(task1.name)
+    a1 = action1_t1.replace({"ref_task": t1})
+    app.tracker.record_run(a1)
+    all_actions = app.get_all_actions()
+    assert len(all_actions) == 1
+    assert all_actions[0] == a1
+
+
+def test_edit_task_failure(task1):
+    app.register_task(task1)
+    t1 = app.get_task_by_name(task1.name)
+    with patch("app.tracker.delete_task", return_value=TaskRecordResults.FAILURE):
+        result = app.edit_task(t1, {"name": "NewName"})
+        assert result is None
+
+
+def test_get_actions_for_task_filtered_start_only_and_end_only(task1, action1_t1):
+    app.register_task(task1)
+    t1 = app.get_task_by_name(task1.name)
+    a1 = action1_t1.replace({"ref_task": t1})
+    app.tracker.record_run(a1)
+
+    # start only
+    actions_start = app.get_actions_for_task_filtered(task1.name, start_time=datetime(2023, 1, 1, tzinfo=UTC))
+    assert len(actions_start) == 1
+
+    # end only
+    actions_end = app.get_actions_for_task_filtered(task1.name, end_time=datetime(2025, 1, 1, tzinfo=UTC))
+    assert len(actions_end) == 1
+
+
+def test_record_run_default_timestamp(task1):
+    app.register_task(task1)
+    res = app.record_run(task1.name, timestamp=None)
+    assert res == ActionRecordResults.SUCCESS
+    assert len(app.tracker.action_list) == 1
+
+

@@ -3,7 +3,7 @@
 
 
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, UTC
 from typing import Optional
 
 
@@ -130,10 +130,10 @@ def get_actions_for_task_filtered(
     end = end_time
 
     if start and not end:
-        end = datetime.now()
+        end = datetime.now(UTC)
     
     if not start and end:
-        start = datetime.min
+        start = datetime.min.replace(tzinfo=UTC)
 
     for action in actions:
         if start and action.timestamp < start:
@@ -157,7 +157,7 @@ def record_run(
         return ActionRecordResults.FAILURE
 
     if timestamp is None:
-        timestamp = datetime.now()
+        timestamp = datetime.now(UTC)
 
     action = Action(ref_task=task, timestamp=timestamp, name=action_name, actor=actor)
     result = tracker.record_run(action)
