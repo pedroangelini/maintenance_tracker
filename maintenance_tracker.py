@@ -86,7 +86,8 @@ class MaintenanceTracker:
         Returns TaskRecordResults.SUCCESS on success.
         """
         try:
-            self.task_list.append(new_task)
+            # delegate to repository
+            self.task_repo.add(new_task)
         except Exception as e:
             # Normalize TaskWithSameNameError from core.TaskLister to DuplicateTaskError
             raise DuplicateTaskError(str(e)) from e
@@ -111,24 +112,24 @@ class MaintenanceTracker:
         ret_code = ActionRecordResults.FAILURE
 
         # check if we've seen this task before
-        if self.task_list._check_task_name_available(new_action.ref_task.name):
+        if self.task_repo.get_by_name(new_action.ref_task.name) is None:
             logger.info(
                 f"adding an action to a task that did not exist before - {new_action.ref_task.name}"
             )
             # register the referenced task, then still record the action
             self.register_task(new_action.ref_task)
             try:
-                self.action_list.append(new_action)
+                self.action_repo.add(new_action)
                 ret_code = ActionRecordResults.SUCCESS
             except Exception:
-                # keep original failure semantics if append fails
+                # keep original failure semantics if add fails
                 ret_code = ActionRecordResults.FAILURE
         else:
-            # task is already registered, append action
-            self.action_list.append(new_action)
+            # task is already registered, add action via repository
+            self.action_repo.add(new_action)
 
-            # warn the user if ref_task is different from the one in the list
-            registered_task = self.task_list.get_task_by_name(new_action.ref_task.name)
+            # warn the user if ref_task is different from the one in the repo
+            registered_task = self.task_repo.get_by_name(new_action.ref_task.name)
             if registered_task == new_action.ref_task:
                 ret_code = ActionRecordResults.SUCCESS
             else:
@@ -144,34 +145,18 @@ class MaintenanceTracker:
         ordered: Ordering | bool = False
     ) -> ActionLister:
         """gets a list of actions for a given task within a time range"""
-        result_list = [
-            action
-            for action in self.action_list
-            if action.ref_task.name == target_task.name
-        ]
-        
-        # Filter by time range if provided
-        if start_time or end_time:
-            if start_time is None:
-                start_time = datetime.min.replace(tzinfo=UTC)
-            if end_time is None:
-                end_time = datetime.now(UTC)
-                
-            result_list = [
-                action
-                for action in result_list
-                if start_time <= action.timestamp <= end_time
-            ]
-        
-        # Order if requested
-        if ordered:
-            result_list = sorted(
-                result_list,
-                key=lambda a: a.timestamp,
-                reverse=(ordered == Ordering.DESC),
-            )
+        # Delegate to action repository to retrieve actions for the task
+        try:
+            result = self.action_repo.get_for_task(target_task, start_time=start_time, end_time=end_time, ordered=ordered)
+        except TypeError:
+            # Some repositories might not accept keyword args; fallback to positional
+            result = self.action_repo.get_for_task(target_task, start_time, end_time, ordered)
 
-        return ActionLister(result_list)
+        # Ensure we return an ActionLister
+        if isinstance(result, ActionLister):
+            return result
+        else:
+            return ActionLister(list(result))
 
     def get_actions_by_time(
         self, start_time: datetime, end_time: datetime | None = None
@@ -180,13 +165,16 @@ class MaintenanceTracker:
         if end_time is None:
             end_time = datetime.now(UTC)
 
-        result_list = [
-            action
-            for action in self.action_list
-            if start_time <= action.timestamp <= end_time
-        ]
+        # Delegate to action repository
+        try:
+            result = self.action_repo.get_by_time(start_time, end_time)
+        except TypeError:
+            result = self.action_repo.get_by_time(start_time, end_time)
 
-        return ActionLister(result_list)
+        if isinstance(result, ActionLister):
+            return result
+        else:
+            return ActionLister(list(result))
 
     def get_latest_task_run(
         self, tgt_task: Task, when: datetime | None = None
@@ -279,7 +267,8 @@ class MaintenanceTracker:
                 f"Task '{task.name}' has {len(dangling_actions)} action(s) and cannot be deleted"
             )
 
-        self.task_list.remove(task)
+        # Remove via repository
+        self.task_repo.remove(task)
         return TaskRecordResults.SUCCESS
 
     def delete_run(self, action: Action) -> ActionRecordResults:
@@ -293,7 +282,8 @@ class MaintenanceTracker:
         """
         logger.debug(f"deleting action {action.ref_task.name}: {action.timestamp}")
         
-        self.action_list.remove(action)
+        # Delegate delete to action repository
+        self.action_repo.remove(action)
         return ActionRecordResults.SUCCESS
 
 
