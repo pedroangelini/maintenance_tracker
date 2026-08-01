@@ -1,7 +1,10 @@
 # cli implements the typer app
 
+import csv
+import json
 import logging
 import sys
+from enum import Enum
 from typing import Optional
 
 import rich
@@ -16,6 +19,13 @@ from maintenance_tracker import *
 logger = logging.getLogger(__name__)
 
 GENERIC_FAIL_CODE = 1
+
+
+class OutputFormat(str, Enum):
+    TABLE = "table"
+    JSON = "json"
+    CSV = "csv"
+
 
 add_app = typer.Typer(
     no_args_is_help=True, help="adds a Task or an Action to the tracker"
@@ -81,6 +91,58 @@ def _print_action_list_table(action_list: ActionLister) -> None:
 
     console = rich.console.Console()
     console.print(table)
+
+
+def _output_task_list_json(task_list: TaskLister) -> None:
+    """Output task list in JSON format"""
+    tasks_data = []
+    for t in task_list:
+        tasks_data.append({
+            "name": t.name,
+            "description": t.description,
+            "start_time": t.start_time.isoformat() if t.start_time else None,
+            "interval": str(t.interval) if t.interval else None,
+        })
+    sys.stdout.write(json.dumps(tasks_data, indent=2) + "\n")
+
+
+def _output_task_list_csv(task_list: TaskLister) -> None:
+    """Output task list in CSV format"""
+    writer = csv.writer(sys.stdout)
+    writer.writerow(["Name", "Description", "Start Time", "Interval"])
+    for t in task_list:
+        writer.writerow([
+            t.name,
+            t.description,
+            t.start_time.isoformat() if t.start_time else "",
+            str(t.interval) if t.interval else "",
+        ])
+
+
+def _output_action_list_json(action_list: ActionLister) -> None:
+    """Output action list in JSON format"""
+    actions_data = []
+    for a in action_list:
+        actions_data.append({
+            "task": a.ref_task.name,
+            "actor": a.actor,
+            "timestamp": a.timestamp.isoformat() if a.timestamp else None,
+            "action_name": a.name,
+        })
+    sys.stdout.write(json.dumps(actions_data, indent=2) + "\n")
+
+
+def _output_action_list_csv(action_list: ActionLister) -> None:
+    """Output action list in CSV format"""
+    writer = csv.writer(sys.stdout)
+    writer.writerow(["Task", "Actor", "Timestamp", "Action Name"])
+    for a in action_list:
+        writer.writerow([
+            a.ref_task.name,
+            a.actor,
+            a.timestamp.isoformat() if a.timestamp else "",
+            a.name,
+        ])
 
 
 ########################################
@@ -191,13 +253,24 @@ def list_tasks_cli(
     overdue: Annotated[
         bool, typer.Option("--overdue", help="list only overdue tasks")
     ] = False,
+    output: Annotated[
+        OutputFormat,
+        typer.Option("--output", "-o", help="output format: table, json, or csv"),
+    ] = OutputFormat.TABLE,
 ):
     if overdue:
         task_list = app.get_overdue_tasks()
-        _print_task_list_table(task_list, title="Overdue Tasks")
+        title = "Overdue Tasks"
     else:
         task_list = app.get_all_tasks()
-        _print_task_list_table(task_list)
+        title = "Task List"
+
+    if output == OutputFormat.JSON:
+        _output_task_list_json(task_list)
+    elif output == OutputFormat.CSV:
+        _output_task_list_csv(task_list)
+    else:
+        _print_task_list_table(task_list, title=title)
 
 
 @list_app.command("actions", help="Prints a list of actions")
@@ -205,12 +278,22 @@ def list_actions_cli(
     task_name: Annotated[
         Optional[str], typer.Argument(help="name of the task to filter actions")
     ] = None,
+    output: Annotated[
+        OutputFormat,
+        typer.Option("--output", "-o", help="output format: table, json, or csv"),
+    ] = OutputFormat.TABLE,
 ):
     if task_name:
         action_list = app.get_actions_for_task_filtered(task_name)
     else:
         action_list = app.get_all_actions()
-    _print_action_list_table(action_list)
+
+    if output == OutputFormat.JSON:
+        _output_action_list_json(action_list)
+    elif output == OutputFormat.CSV:
+        _output_action_list_csv(action_list)
+    else:
+        _print_action_list_table(action_list)
 
 
 ########################################

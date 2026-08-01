@@ -133,19 +133,21 @@ or
 
 ### List tasks
 
-`mtnt list tasks [--overdue]`
+`mtnt list tasks [--overdue] [--output table|json|csv]`
 
 | Argument | Description |
 |---|---|
 | `--overdue` | list only overdue tasks |
+| `--output`, `-o` | output format; defaults to `table`, or use `json` or `csv` for standard output |
 
 ### List actions optionally for a single task
 
-`mtnt list actions [<task_name>]`
+`mtnt list actions [<task_name>] [--output table|json|csv]`
 
 | Argument    | Description          |
 | ----------- | -------------------- |
 | `task_name` | The name of the task |
+| `--output`, `-o` | output format; defaults to `table`, or use `json` or `csv` for standard output |
 
 ### See details of a task
 

@@ -1,4 +1,7 @@
+import csv
 import datetime
+import io
+import json
 from datetime import UTC
 from unittest.mock import MagicMock, patch
 from pathlib import Path
@@ -143,6 +146,55 @@ def test_list_tasks_overdue(mock_app, tmp_config_dir):
     assert result.exit_code == 0
     assert "OverdueTask" in result.stdout
     mock_app.get_overdue_tasks.assert_called_once()
+
+
+def test_list_tasks_json_output(mock_app, tmp_config_dir):
+    """Task lists can be emitted as machine-readable JSON."""
+    task = Task(
+        "Task1",
+        description="Desc1",
+        start_time=datetime.datetime(2024, 1, 2, 10, 0, tzinfo=UTC),
+        interval=datetime.timedelta(days=7),
+    )
+    mock_app.get_all_tasks.return_value = TaskLister([task])
+
+    result = invoke_app(["list", "tasks", "--output", "json"], tmp_config_dir)
+
+    assert result.exit_code == 0
+    assert json.loads(result.stdout) == [{
+        "name": "Task1",
+        "description": "Desc1",
+        "start_time": "2024-01-02T10:00:00+00:00",
+        "interval": "7 days, 0:00:00",
+    }]
+
+
+def test_list_actions_csv_output(mock_app, tmp_config_dir):
+    """Action lists can be emitted as CSV to standard output."""
+    task = Task("Task1")
+    action = Action(
+        timestamp=datetime.datetime(2024, 1, 2, 10, 0, tzinfo=UTC),
+        ref_task=task,
+        name="Completed",
+        actor="Alex",
+    )
+    mock_app.get_all_actions.return_value = ActionLister([action])
+
+    result = invoke_app(["list", "actions", "--output", "csv"], tmp_config_dir)
+
+    assert result.exit_code == 0
+    assert list(csv.reader(io.StringIO(result.stdout))) == [
+        ["Task", "Actor", "Timestamp", "Action Name"],
+        ["Task1", "Alex", "2024-01-02T10:00:00+00:00", "Completed"],
+    ]
+
+
+def test_list_rejects_unknown_output_format(mock_app, tmp_config_dir):
+    """Output format values are constrained to the documented formats."""
+    result = invoke_app(["list", "tasks", "--output", "yaml"], tmp_config_dir)
+
+    assert result.exit_code == 2
+    assert "Invalid value" in result.stdout
 
 
 def test_no_args_shows_help_when_database_does_not_exist(mock_app, tmp_config_dir):
