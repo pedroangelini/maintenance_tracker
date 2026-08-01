@@ -5,6 +5,7 @@ from repository import FileTaskRepository, FileActionRepository, TaskListPersist
 from core import TaskLister, ActionLister
 from datetime import datetime, UTC
 import utils
+from test_core import task1
 
 
 def test_init_with_provided_repos_and_load(tmp_path):
