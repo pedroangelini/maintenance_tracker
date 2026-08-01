@@ -219,4 +219,3 @@ Notes
 - Current code already contains JSON encoders/decoders and Persister classes in core.py; moving them to an infra module clarifies responsibilities (core.py then only defines domain types and listers).
 - Do not move presentation formatting into app.py — keep the CLI as the presenter or add a presenters module.
 
-Would like to proceed with the first incremental change (create repository interfaces and DI wiring)?
