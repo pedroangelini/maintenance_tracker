@@ -146,3 +146,127 @@ class TaskListPersister(Persister):
             filename = DEFAULT_TASK_LIST_FILE
         self.filename = filename
         self.save_path = Path(self.dirname).joinpath(self.filename)
+
+
+# --- Repository wrappers to enable dependency injection and a repository pattern ---
+class TaskRepository:
+    """Simple repository interface for tasks."""
+
+    def list(self):
+        raise NotImplementedError
+
+    def get_by_name(self, name: str):
+        raise NotImplementedError
+
+    def add(self, task):
+        raise NotImplementedError
+
+    def remove(self, task):
+        raise NotImplementedError
+
+    def save(self):
+        raise NotImplementedError
+
+    def load(self):
+        raise NotImplementedError
+
+
+class FileTaskRepository(TaskRepository):
+    def __init__(self, task_list=None, dirname=None, filename=None):
+        import core
+
+        if task_list is None:
+            task_list = core.TaskLister([])
+        self.task_list = task_list
+        self.persister = TaskListPersister(self.task_list, dirname, filename)
+        self.dirname = self.persister.dirname
+        self.filename = self.persister.filename
+
+    def list(self):
+        return self.task_list
+
+    def get_by_name(self, name: str):
+        return self.task_list.get_task_by_name(name)
+
+    def add(self, task):
+        self.task_list.append(task)
+
+    def remove(self, task):
+        self.task_list.remove(task)
+
+    def save(self):
+        return self.persister.save()
+
+    def load(self):
+        return self.persister.load()
+
+
+class ActionRepository:
+    """Simple repository interface for actions."""
+
+    def list(self):
+        raise NotImplementedError
+
+    def add(self, action):
+        raise NotImplementedError
+
+    def remove(self, action):
+        raise NotImplementedError
+
+    def get_for_task(self, task):
+        raise NotImplementedError
+
+    def get_by_time(self, start_time, end_time=None):
+        raise NotImplementedError
+
+    def save(self):
+        raise NotImplementedError
+
+    def load(self):
+        raise NotImplementedError
+
+
+class FileActionRepository(ActionRepository):
+    def __init__(self, action_list=None, dirname=None, filename=None):
+        import core
+
+        if action_list is None:
+            action_list = core.ActionLister([])
+        self.action_list = action_list
+        self.persister = ActionListPersister(self.action_list, dirname, filename)
+        self.dirname = self.persister.dirname
+        self.filename = self.persister.filename
+
+    def list(self):
+        return self.action_list
+
+    def add(self, action):
+        self.action_list.append(action)
+
+    def remove(self, action):
+        self.action_list.remove(action)
+
+    def get_for_task(self, task, start_time=None, end_time=None, ordered=False):
+        # replicate existing filtering semantics
+        result_list = [a for a in self.action_list if a.ref_task.name == task.name]
+        if start_time or end_time:
+            if start_time is None:
+                start_time = datetime.min.replace(tzinfo=timezone.utc)
+            if end_time is None:
+                end_time = datetime.now(timezone.utc)
+            result_list = [a for a in result_list if start_time <= a.timestamp <= end_time]
+        if ordered:
+            from core import Ordering
+            result_list = sorted(result_list, key=lambda a: a.timestamp, reverse=(ordered == Ordering.DESC))
+        return result_list
+
+    def get_by_time(self, start_time, end_time=None):
+        if end_time is None:
+            end_time = datetime.now(timezone.utc)
+        return [a for a in self.action_list if start_time <= a.timestamp <= end_time]
+
+    def save(self):
+        return self.persister.save()
+
+    def load(self):
+        return self.persister.load()
