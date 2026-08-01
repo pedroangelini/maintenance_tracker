@@ -110,24 +110,7 @@ def test_action_list_equality(task1: Task, action1_t1: Action, action2_t1: Actio
     ), "issue with equality of different types (ActionLister)"
 
 
-def test_save_load_task_list(tmp_path: Path, task1: Task, task2: Task, task3: Task):
-    tsk_lst = TaskLister([task1, task2])
-    tsk_lst.add(task3)
-
-    logging.debug(f"Temporary path for TaskListPersister {tmp_path}")
-    tl_saver = TaskListPersister(tsk_lst, dirname=tmp_path)
-
-    tl_saver._remove_file()
-
-    tl_saver.save()
-
-    new_tl_saver = TaskListPersister(TaskLister([]), dirname=tmp_path)
-    new_task_list = new_tl_saver.load()
-
-    tl_saver._remove_file()
-
-    assert new_task_list == tsk_lst
-    assert type(new_task_list) == type(tsk_lst)
+# persister tests moved to test_repository.py
 
 
 def test_get_task_by_name(task1, task2):
@@ -175,22 +158,7 @@ def test_get_all_tasks_due_period(task1, task2):
     ]
 
 
-def test_save_load_action_list(tmp_path: Path, action1_t1: Action, action2_t1: Action):
-    act_lst = ActionLister([action1_t1, action2_t1])
-
-    logging.debug(f"Temporary path for ActionListPersister {tmp_path}")
-    al_saver = ActionListPersister(act_lst, dirname=tmp_path)
-
-    al_saver._remove_file()
-
-    al_saver.save()
-
-    new_al_saver = ActionListPersister(ActionLister([]), dirname=tmp_path)
-    new_action_list = new_al_saver.load()
-
-    al_saver._remove_file()
-
-    assert (new_action_list == act_lst) and type(new_action_list) == type(act_lst)
+# persister tests moved to test_repository.py
 
 
 def test_task_lister_collision(task1: Task):
@@ -449,48 +417,7 @@ def test_task_get_all_programmed_times_break(task1):
     times = task1.get_all_programmed_times(period, when)
     assert len(times) == 5
 
-def test_persister_remove_nonexistent_file(tmp_path):
-    persister = Persister(None)
-    persister.save_path = tmp_path / "non_existent_file.json"
-    persister._remove_file() # Should not raise FileNotFoundError
-
-def test_json_decoder_unknown_type():
-    import json
-    json_str = '{"__type__": "UnknownType", "foo": "bar"}'
-    decoder = MtnTrackerJSONDecoder()
-    decoded = decoder.decode(json_str)
-    assert decoded == {"__type__": "UnknownType", "foo": "bar"}
-
-def test_json_decoder_no_type():
-    import json
-    json_str = '{"foo": "bar"}'
-    decoder = MtnTrackerJSONDecoder()
-    decoded = decoder.decode(json_str)
-    assert decoded == {"foo": "bar"}
-
-def test_persister_constructors(tmp_path: Path):
-    task_list = TaskLister([])
-    action_list = ActionLister([])
-
-    # Test TaskListPersister with specified dirname
-    tlp_dirname = TaskListPersister(task_list, dirname=str(tmp_path))
-    assert tlp_dirname.dirname == str(tmp_path)
-    assert tlp_dirname.filename == DEFAULT_TASK_LIST_FILE
-    assert tlp_dirname.save_path == tmp_path / DEFAULT_TASK_LIST_FILE
-
-    # Test TaskListPersister with specified filename
-    tlp_filename = TaskListPersister(task_list, filename="custom_tasks.json")
-    assert tlp_filename.filename == "custom_tasks.json"
-
-    # Test ActionListPersister with specified dirname
-    alp_dirname = ActionListPersister(action_list, dirname=str(tmp_path))
-    assert alp_dirname.dirname == str(tmp_path)
-    assert alp_dirname.filename == DEFAULT_ACTION_LIST_FILE
-    assert alp_dirname.save_path == tmp_path / DEFAULT_ACTION_LIST_FILE
-
-    # Test ActionListPersister with specified filename
-    alp_filename = ActionListPersister(action_list, filename="custom_actions.json")
-    assert alp_filename.filename == "custom_actions.json"
+# persister and JSON codec tests moved to test_repository.py
 
 def test_task_lister_get_task_by_name_not_found(task1):
     lister = TaskLister([task1])

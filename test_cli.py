@@ -14,6 +14,9 @@ from core import Task, TaskLister, Action
 from maintenance_tracker import ActionRecordResults, TaskRecordResults, ActionLister
 import config as config_module
 
+import cli as cli_mod
+import typer
+
 runner = CliRunner()
 
 
@@ -487,3 +490,93 @@ def test_report_actions_between_filters_by_task(mock_app, tmp_config_dir):
     assert result.exit_code == 0
     assert "completed" in result.stdout
     assert mock_app.get_actions_by_time.call_args.args[2] == "TaskName"
+
+
+# Additional CLI unit tests for internal helper functions
+import io
+import sys
+import cli as cli_mod
+import typer
+
+
+def test_output_task_list_csv(capsys):
+    t = Task("CSVTask", description="d", start_time=datetime.datetime(2024,1,1, tzinfo=UTC), interval=datetime.timedelta(days=1))
+    tl = TaskLister([t])
+    cli_mod._output_task_list_csv(tl)
+    out = capsys.readouterr().out
+    assert "Name,Description,Start Time,Interval" in out
+    assert "CSVTask" in out
+
+
+def test_output_action_list_json(capsys):
+    t = Task("T")
+    a = Action(timestamp=datetime.datetime(2024,1,1, tzinfo=UTC), ref_task=t, name="act", actor="me")
+    al = ActionLister([a])
+    cli_mod._output_action_list_json(al)
+    out = capsys.readouterr().out
+    import json as _json
+    data = _json.loads(out)
+    assert isinstance(data, list)
+    assert data[0]["task"] == "T"
+    assert data[0]["action_name"] == "act"
+
+
+def test_print_action_list_table(capsys):
+    t = Task("TableTask")
+    a = Action(timestamp=datetime.datetime(2024,1,2, tzinfo=UTC), ref_task=t, name="doit", actor="me")
+    al = ActionLister([a])
+    cli_mod._print_action_list_table(al)
+    out = capsys.readouterr().out
+    assert "doit" in out
+    assert "TableTask" in out
+
+
+def test_get_actions_calls_and_no_actions(monkeypatch, capsys):
+    # no actions
+    monkeypatch.setattr(cli_mod.app, 'get_actions_for_task_filtered', lambda name: ActionLister([]))
+    cli_mod.get_actions("no-task")
+    out = capsys.readouterr().out
+    assert "No actions found" in out
+
+    # with actions
+    called = {"v": False}
+    def fake_print(al):
+        called['v'] = True
+    monkeypatch.setattr(cli_mod, '_print_action_list_table', fake_print)
+    monkeypatch.setattr(cli_mod.app, 'get_actions_for_task_filtered', lambda name: ActionLister([Action(datetime.datetime(2024,1,2, tzinfo=UTC), Task(name="X"), name="a")]))
+    cli_mod.get_actions("any")
+    assert called['v'] is True
+
+
+def test_get_action_by_timestamp_and_by_name(monkeypatch, capsys):
+    t = Task("Tk")
+    a = Action(timestamp=datetime.datetime(2024,3,3, tzinfo=UTC), ref_task=t, name="aname", actor="actor")
+    # timestamp path
+    monkeypatch.setattr(cli_mod.app, 'get_action', lambda task_name, ts: a)
+    cli_mod.get_action("Tk", a.timestamp.isoformat())
+    out = capsys.readouterr().out
+    assert "Actor: actor" in out
+
+    # name path multiple
+    monkeypatch.setattr(cli_mod.app, 'get_action', lambda task_name, ts: None)
+    monkeypatch.setattr(cli_mod.app, 'get_actions_for_task_filtered', lambda task_name, action_name=None: ActionLister([a, a]))
+    with pytest.raises(typer.Exit):
+        cli_mod.get_action("Tk", "aname")
+
+
+def test_edit_action_success_and_not_found(monkeypatch, capsys):
+    t = Task("Tedit")
+    a = Action(timestamp=datetime.datetime(2024,4,4, tzinfo=UTC), ref_task=t, name="old", actor="oldactor")
+    # case: not found
+    monkeypatch.setattr(cli_mod.app, 'get_actions_for_task_filtered', lambda name: ActionLister([]))
+    with pytest.raises(typer.Exit):
+        cli_mod.edit_action("Tedit", "old")
+
+    # case: found and updated
+    monkeypatch.setattr(cli_mod.app, 'get_actions_for_task_filtered', lambda name: ActionLister([a]))
+    monkeypatch.setattr(cli_mod.app, 'get_action', lambda name, ts: a)
+    updated = Action(timestamp=datetime.datetime(2025,5,5, tzinfo=UTC), ref_task=t, name="new", actor="newactor")
+    monkeypatch.setattr(cli_mod.app, 'edit_action', lambda tn, ar, **kwargs: updated)
+    cli_mod.edit_action("Tedit", a.timestamp.isoformat(), new_actor="newactor")
+    out = capsys.readouterr().out
+    assert "Action updated successfully" in out
