@@ -94,11 +94,18 @@ def record_run(
     action_name: str = "",
     actor: str = "",
 ) -> ActionRecordResults:
-    """Records an action for a given task."""
+    """Records an action for a given task.
+
+    Raises TaskNotFoundError when the provided task_name does not exist.
+    Returns an ActionRecordResults enum indicating success or mismatch.
+    """
     global tracker
     task = get_task_by_name(task_name)
     if task is None:
-        return ActionRecordResults.FAILURE
+        # Prefer exceptions for missing resources
+        from errors import TaskNotFoundError
+
+        raise TaskNotFoundError(f"Task '{task_name}' not found")
 
     if timestamp is None:
         timestamp = datetime.now(UTC)
@@ -149,12 +156,18 @@ def get_actions_by_time(start_time: datetime, end_time: datetime, task_name: str
         return tracker.get_actions_by_time(start_time, end_time)
 
 def delete_task(task_name: str) -> TaskRecordResults:
-    """Deletes a task."""
+    """Deletes a task.
+
+    Raises TaskNotFoundError if task does not exist, or propagates DanglingActionsError from tracker.
+    Returns TaskRecordResults.SUCCESS on success.
+    """
     global tracker
     task = get_task_by_name(task_name)
     if task is None:
-        return TaskRecordResults.FAILURE
-    
+        from errors import TaskNotFoundError
+
+        raise TaskNotFoundError(f"Task '{task_name}' not found")
+
     result = tracker.delete_task(task)
     if result == TaskRecordResults.SUCCESS:
         tracker.save()
