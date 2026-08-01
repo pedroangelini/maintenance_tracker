@@ -52,3 +52,46 @@ def test_edit_action_name_path_with_parse_error(monkeypatch, task1):
     edited = mt.edit_action(task1.name, "parseme", new_actor="me")
     assert edited is not None
     assert edited.actor == "me"
+
+
+def test_get_actions_with_start_only(task1):
+    mt = MaintenanceTracker()
+    mt.register_task(task1)
+    a1 = Action(timestamp=datetime(2024,1,1, tzinfo=UTC), ref_task=task1, name="one")
+    a2 = Action(timestamp=datetime(2024,6,1, tzinfo=UTC), ref_task=task1, name="two")
+    mt.record_run(a1)
+    mt.record_run(a2)
+
+    start_time = datetime(2024,2,1, tzinfo=UTC)
+    actions = mt.get_actions_for_task(task1, start_time=start_time, end_time=None)
+    # only a2 should be after start_time
+    assert len(actions) == 1
+    assert actions[0].name == "two"
+
+
+def test_edit_action_multiple_updates(task1):
+    mt = MaintenanceTracker()
+    mt.register_task(task1)
+    other = Task(name="other")
+    mt.register_task(other)
+    a = Action(timestamp=datetime(2024,9,9, tzinfo=UTC), ref_task=task1, name="multi")
+    mt.record_run(a)
+
+    ts = a.timestamp.isoformat()
+    new_ts = datetime(2025,5,5, tzinfo=UTC)
+    edited = mt.edit_action(task1.name, ts, new_actor="who", new_timestamp=new_ts, new_action_name="done", new_task_name="other")
+    assert edited is not None
+    assert edited.actor == "who"
+    assert edited.timestamp == new_ts
+    assert edited.name == "done"
+    assert edited.ref_task.name == "other"
+
+
+def test_delete_task_with_dangling_actions(task1):
+    mt = MaintenanceTracker()
+    mt.register_task(task1)
+    a = Action(timestamp=datetime(2024,10,10, tzinfo=UTC), ref_task=task1, name="dang")
+    mt.record_run(a)
+    res = mt.delete_task(task1)
+    assert res != None
+    assert res == mt.TaskRecordResults.FAILURE if hasattr(mt, 'TaskRecordResults') else res == 0
