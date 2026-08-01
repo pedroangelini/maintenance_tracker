@@ -9,9 +9,11 @@ import logging
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from dataclasses import asdict, is_dataclass
-from typing import Any
+from typing import Any, Optional
+from abc import ABC, abstractmethod
 
 import core
+from errors import DuplicateTaskError
 
 logger = logging.getLogger(__name__)
 
@@ -95,7 +97,8 @@ class Persister:
     def __init__(self, persisted_object):
         self.obj = persisted_object
 
-    def save(self):
+    def save(self) -> Any:
+        """Persist the backing lister to disk and return the lister object."""
         logger.info(f"writing to {self.save_path}")
         # Ensure directory exists
         self.save_path.parent.mkdir(parents=True, exist_ok=True)
@@ -103,7 +106,8 @@ class Persister:
             json.dump(self.obj.data, f, cls=MtnTrackerJSONEncoder, indent=4)
         return self.obj
 
-    def load(self):
+    def load(self) -> Any:
+        """Load persisted data into the backing lister and return it (TaskLister/ActionLister)."""
         if not self.save_path.exists():
             # create an empty file with current object
             self.save()
@@ -149,36 +153,42 @@ class TaskListPersister(Persister):
 
 
 # --- Repository wrappers to enable dependency injection and a repository pattern ---
-class TaskRepository:
+class TaskRepository(ABC):
     """Repository interface for tasks.
 
-    Implementations must provide list/get/add/remove/save/load. Methods should return
+    Implementations must provide list/get/add/remove/save/load. Methods return
     core.TaskLister where appropriate (list/load) to keep types consistent.
     """
 
-    def list(self):
+    @abstractmethod
+    def list(self) -> core.TaskLister:
         """Return a TaskLister containing all tasks."""
-        raise NotImplementedError
+        pass
 
-    def get_by_name(self, name: str):
+    @abstractmethod
+    def get_by_name(self, name: str) -> Optional[core.Task]:
         """Return a Task by exact name or None if not found."""
-        raise NotImplementedError
+        pass
 
-    def add(self, task):
-        """Add a Task to the repository."""
-        raise NotImplementedError
+    @abstractmethod
+    def add(self, task: core.Task) -> None:
+        """Add a Task to the repository; raise DuplicateTaskError on conflict."""
+        pass
 
-    def remove(self, task):
+    @abstractmethod
+    def remove(self, task: core.Task) -> None:
         """Remove a Task from the repository."""
-        raise NotImplementedError
+        pass
 
-    def save(self):
-        """Persist repository contents to storage."""
-        raise NotImplementedError
+    @abstractmethod
+    def save(self) -> core.TaskLister:
+        """Persist repository contents to storage and return TaskLister."""
+        pass
 
-    def load(self):
+    @abstractmethod
+    def load(self) -> core.TaskLister:
         """Load repository contents from storage and return a TaskLister."""
-        raise NotImplementedError
+        pass
 
 
 class FileTaskRepository(TaskRepository):
@@ -187,78 +197,93 @@ class FileTaskRepository(TaskRepository):
     list() returns a TaskLister instance and add/remove mutate that lister.
     """
 
-    def __init__(self, task_list=None, dirname=None, filename=None):
+    def __init__(self, task_list: Optional[core.TaskLister]=None, dirname: Optional[str]=None, filename: Optional[str]=None):
         import core
 
         if task_list is None:
             task_list = core.TaskLister([])
-        self.task_list = task_list
-        self.persister = TaskListPersister(self.task_list, dirname, filename)
+        self.task_list: core.TaskLister = task_list
+        self.persister: TaskListPersister = TaskListPersister(self.task_list, dirname, filename)
         self.dirname = self.persister.dirname
         self.filename = self.persister.filename
 
-    def list(self):
+    def list(self) -> core.TaskLister:
         """Return the TaskLister backing this repository."""
         return self.task_list
 
-    def get_by_name(self, name: str):
+    def get_by_name(self, name: str) -> Optional[core.Task]:
         """Return a Task by name or None."""
         return self.task_list.get_task_by_name(name)
 
-    def add(self, task):
-        """Append a task to the internal TaskLister."""
-        self.task_list.append(task)
+    def add(self, task: core.Task) -> None:
+        """Append a task to the internal TaskLister.
 
-    def remove(self, task):
+        Raises:
+            DuplicateTaskError: if a task with the same name already exists
+        """
+        try:
+            self.task_list.append(task)
+        except Exception as e:
+            # Normalize underlying TaskWithSameNameError to DuplicateTaskError
+            raise DuplicateTaskError(str(e)) from e
+
+    def remove(self, task: core.Task) -> None:
         """Remove a task from the internal TaskLister."""
         self.task_list.remove(task)
 
-    def save(self):
-        """Persist the task list to disk via the persister."""
+    def save(self) -> core.TaskLister:
+        """Persist the task list to disk via the persister and return TaskLister."""
         return self.persister.save()
 
-    def load(self):
+    def load(self) -> core.TaskLister:
         """Load persisted task list via the persister and return TaskLister."""
         return self.persister.load()
 
 
-class ActionRepository:
+class ActionRepository(ABC):
     """Repository interface for actions.
 
     Implementations should return core.ActionLister from list(), get_for_task() and get_by_time()
     to keep the public API consistent.
     """
 
-    def list(self):
+    @abstractmethod
+    def list(self) -> core.ActionLister:
         """Return an ActionLister of all actions."""
-        raise NotImplementedError
+        pass
 
-    def add(self, action):
+    @abstractmethod
+    def add(self, action: core.Action) -> None:
         """Add an Action to the repository."""
-        raise NotImplementedError
+        pass
 
-    def remove(self, action):
+    @abstractmethod
+    def remove(self, action: core.Action) -> None:
         """Remove an Action from the repository."""
-        raise NotImplementedError
+        pass
 
-    def get_for_task(self, task):
+    @abstractmethod
+    def get_for_task(self, task: core.Task, start_time: Optional[datetime]=None, end_time: Optional[datetime]=None, ordered: 'core.Ordering'=None) -> core.ActionLister:
         """Return ActionLister of actions for a given task (optionally filtered by time).
 
-        Signature should accept (task, start_time=None, end_time=None, ordered=False).
+        Signature accepts (task, start_time=None, end_time=None, ordered=Ordering.ASC).
         """
-        raise NotImplementedError
+        pass
 
-    def get_by_time(self, start_time, end_time=None):
+    @abstractmethod
+    def get_by_time(self, start_time: datetime, end_time: Optional[datetime]=None) -> core.ActionLister:
         """Return an ActionLister of actions within a time range."""
-        raise NotImplementedError
+        pass
 
-    def save(self):
-        """Persist repository contents to storage."""
-        raise NotImplementedError
+    @abstractmethod
+    def save(self) -> core.ActionLister:
+        """Persist repository contents to storage and return ActionLister."""
+        pass
 
-    def load(self):
+    @abstractmethod
+    def load(self) -> core.ActionLister:
         """Load repository contents from storage and return an ActionLister."""
-        raise NotImplementedError
+        pass
 
 
 class FileActionRepository(ActionRepository):
@@ -267,29 +292,29 @@ class FileActionRepository(ActionRepository):
     Methods return ActionLister to match the repository contract.
     """
 
-    def __init__(self, action_list=None, dirname=None, filename=None):
+    def __init__(self, action_list: Optional[core.ActionLister]=None, dirname: Optional[str]=None, filename: Optional[str]=None):
         import core
 
         if action_list is None:
             action_list = core.ActionLister([])
-        self.action_list = action_list
-        self.persister = ActionListPersister(self.action_list, dirname, filename)
+        self.action_list: core.ActionLister = action_list
+        self.persister: ActionListPersister = ActionListPersister(self.action_list, dirname, filename)
         self.dirname = self.persister.dirname
         self.filename = self.persister.filename
 
-    def list(self):
+    def list(self) -> core.ActionLister:
         """Return the ActionLister backing this repository."""
         return self.action_list
 
-    def add(self, action):
+    def add(self, action: core.Action) -> None:
         """Append an action to the internal ActionLister."""
         self.action_list.append(action)
 
-    def remove(self, action):
+    def remove(self, action: core.Action) -> None:
         """Remove an action from the internal ActionLister."""
         self.action_list.remove(action)
 
-    def get_for_task(self, task, start_time=None, end_time=None, ordered=False):
+    def get_for_task(self, task: core.Task, start_time: Optional[datetime]=None, end_time: Optional[datetime]=None, ordered: 'core.Ordering'=None) -> core.ActionLister:
         """Return an ActionLister filtered by task and optional time range/order."""
         # replicate existing filtering semantics
         result_list = [a for a in self.action_list if a.ref_task.name == task.name]
@@ -301,22 +326,25 @@ class FileActionRepository(ActionRepository):
             result_list = [a for a in result_list if start_time <= a.timestamp <= end_time]
         if ordered:
             from core import Ordering
+            # ensure ordered is Ordering enum
+            if not isinstance(ordered, Ordering):
+                ordered = Ordering(ordered) if ordered is not None else Ordering.ASC
             result_list = sorted(result_list, key=lambda a: a.timestamp, reverse=(ordered == Ordering.DESC))
         # return ActionLister for consistency
         from core import ActionLister as _ActionLister
         return _ActionLister(result_list)
 
-    def get_by_time(self, start_time, end_time=None):
+    def get_by_time(self, start_time: datetime, end_time: Optional[datetime]=None) -> core.ActionLister:
         """Return an ActionLister of actions within a time window."""
         if end_time is None:
             end_time = datetime.now(timezone.utc)
         from core import ActionLister as _ActionLister
         return _ActionLister([a for a in self.action_list if start_time <= a.timestamp <= end_time])
 
-    def save(self):
-        """Persist the action list to disk via the persister."""
+    def save(self) -> core.ActionLister:
+        """Persist the action list to disk via the persister and return ActionLister."""
         return self.persister.save()
 
-    def load(self):
+    def load(self) -> core.ActionLister:
         """Load persisted action list via the persister and return ActionLister."""
         return self.persister.load()
