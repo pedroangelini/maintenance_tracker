@@ -93,5 +93,5 @@ def test_delete_task_with_dangling_actions(task1):
     a = Action(timestamp=datetime(2024,10,10, tzinfo=UTC), ref_task=task1, name="dang")
     mt.record_run(a)
     res = mt.delete_task(task1)
-    assert res != None
-    assert res == mt.TaskRecordResults.FAILURE if hasattr(mt, 'TaskRecordResults') else res == 0
+    from maintenance_tracker import TaskRecordResults
+    assert res == TaskRecordResults.FAILURE
