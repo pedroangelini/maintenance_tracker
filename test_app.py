@@ -185,11 +185,12 @@ def test_edit_task_with_name_change(task1):
 
 
 def test_edit_task_fails_without_name_change(task1):
+    from errors import DuplicateTaskError
     app.register_task(task1)
     task_from_tracker = app.get_task_by_name(task1.name)
 
     changes = {"description": "new description"}
-    with pytest.raises(TaskWithSameNameError):
+    with pytest.raises(DuplicateTaskError):
         app.edit_task(task_from_tracker, changes)
 
 
@@ -241,9 +242,10 @@ def test_record_run(task1):
 
 
 def test_record_run_no_task():
+    from errors import TaskNotFoundError
     with patch("app.tracker.save") as mock_save:
-        result = app.record_run("non-existent task")
-        assert result == ActionRecordResults.FAILURE
+        with pytest.raises(TaskNotFoundError):
+            app.record_run("non-existent task")
         mock_save.assert_not_called()
 
 
@@ -268,9 +270,10 @@ def test_delete_task(task1):
 
 
 def test_delete_task_not_found():
+    from errors import TaskNotFoundError
     with patch("app.tracker.save") as mock_save:
-        result = app.delete_task("non-existent task")
-        assert result == TaskRecordResults.FAILURE
+        with pytest.raises(TaskNotFoundError):
+            app.delete_task("non-existent task")
         mock_save.assert_not_called()
 
 
@@ -370,9 +373,10 @@ def test_get_all_actions(task1, action1_t1):
 def test_edit_task_failure(task1):
     app.register_task(task1)
     t1 = app.get_task_by_name(task1.name)
-    with patch("app.tracker.delete_task", return_value=TaskRecordResults.FAILURE):
-        result = app.edit_task(t1, {"name": "NewName"})
-        assert result is None
+    from errors import DanglingActionsError
+    with patch("app.tracker.delete_task", side_effect=DanglingActionsError("cannot delete")):
+        with pytest.raises(DanglingActionsError):
+            app.edit_task(t1, {"name": "NewName"})
 
 
 def test_get_actions_for_task_filtered_start_only_and_end_only(task1, action1_t1):

@@ -198,15 +198,17 @@ class TaskLister(UserList):
     def add(self, new_task: Task) -> None:
         self.append(new_task)
 
-    def extend(self, new_tasks: Sequence[Task]) -> None:
-        for t in new_tasks:
+    def extend(self, other: Sequence[Task]) -> None:
+        # conform to UserList.extend signature (other)
+        for t in other:
             self.append(t)
 
-    def append(self, new_task: Task) -> None:
-        if self._check_task_name_available(new_task.name):
-            super().append(new_task)
+    def append(self, item: Task) -> None:
+        # conform to UserList.append signature (item)
+        if self._check_task_name_available(item.name):
+            super().append(item)
         else:
-            error_msg = f"Error adding a task to the list: cannot have two tasks with the same name. '{new_task.name}' already exist."
+            error_msg = f"Error adding a task to the list: cannot have two tasks with the same name. '{item.name}' already exist."
             logger.debug(error_msg)
             raise (TaskWithSameNameError(error_msg))
 

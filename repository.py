@@ -23,33 +23,35 @@ DEFAULT_TASK_LIST_FILE = "task_list.json"
 class MtnTrackerJSONEncoder(json.JSONEncoder):
     """Converts python objects (datetimes, timedeltas, dataclasses) for JSON serialization."""
 
-    def default(self, obj):
-        if isinstance(obj, datetime):
+    def default(self, o: Any) -> Any:
+        # keep signature compatible with json.JSONEncoder.default (param commonly named 'o')
+        if isinstance(o, datetime):
             return {
                 "__type__": "datetime",
-                "year": obj.year,
-                "month": obj.month,
-                "day": obj.day,
-                "hour": obj.hour,
-                "minute": obj.minute,
-                "second": obj.second,
-                "microsecond": obj.microsecond,
-                "utcoffset": obj.utcoffset(),
+                "year": o.year,
+                "month": o.month,
+                "day": o.day,
+                "hour": o.hour,
+                "minute": o.minute,
+                "second": o.second,
+                "microsecond": o.microsecond,
+                "utcoffset": o.utcoffset(),
             }
 
-        elif isinstance(obj, timedelta):
+        elif isinstance(o, timedelta):
             return {
                 "__type__": "timedelta",
-                "days": obj.days,
-                "seconds": obj.seconds,
-                "microseconds": obj.microseconds,
+                "days": o.days,
+                "seconds": o.seconds,
+                "microseconds": o.microseconds,
             }
 
-        elif is_dataclass(obj):
-            return {"__type__": obj.__class__.__name__} | asdict(obj)
+        elif is_dataclass(o):
+            # asdict can be picky about the exact type, cast to Any to appease type checkers
+            return {"__type__": getattr(o.__class__, "__name__", "dataclass")} | asdict(o)  # type: ignore[arg-type]
 
         else:
-            return json.JSONEncoder.default(self, obj)
+            return json.JSONEncoder.default(self, o)
 
 
 class MtnTrackerJSONDecoder(json.JSONDecoder):

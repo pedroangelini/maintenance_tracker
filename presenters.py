@@ -9,7 +9,8 @@ import json
 import sys
 from typing import Optional
 
-import rich
+from rich.table import Table
+from rich.console import Console
 
 import utils
 from core import *
@@ -25,7 +26,7 @@ def _rich_task(t: Task) -> str:
 
 
 def _print_task_list_table(task_list: TaskLister, title: str = "Task List") -> None:
-    table = rich.table.Table(title=title)
+    table = Table(title=title)
 
     table.add_column("Name", justify="left", no_wrap=True)
     table.add_column("Description")
@@ -40,12 +41,12 @@ def _print_task_list_table(task_list: TaskLister, title: str = "Task List") -> N
             utils.human_interval_str(t.interval),
         )
 
-    console = rich.console.Console()
+    console = Console()
     console.print(table)
 
 
 def _print_action_list_table(action_list: ActionLister) -> None:
-    table = rich.table.Table(title="Action List")
+    table = Table(title="Action List")
 
     table.add_column("Task", justify="left", no_wrap=True)
     table.add_column("Actor", justify="left", style="blue")
@@ -60,7 +61,7 @@ def _print_action_list_table(action_list: ActionLister) -> None:
             a.name,
         )
 
-    console = rich.console.Console()
+    console = Console()
     console.print(table)
 
 

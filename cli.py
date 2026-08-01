@@ -8,6 +8,8 @@ from enum import Enum
 from typing import Optional
 
 import rich
+from rich.table import Table
+from rich.console import Console
 import typer
 from typing_extensions import Annotated
 
@@ -139,7 +141,13 @@ def record_run(
 ):
     """Records an action for a task."""
     ts = utils.parse_date(timestamp) if timestamp else None
-    result = app.record_run(task_name, ts, action_name, actor)
+    try:
+        result = app.record_run(task_name, ts, action_name, actor)
+    except Exception as e:
+        # Map domain exceptions to friendly CLI errors
+        rich.print(f":x: [red]{str(e)}[/red]")
+        raise typer.Exit(code=GENERIC_FAIL_CODE)
+
     if result == ActionRecordResults.SUCCESS:
         rich.print(f":heavy_check_mark: [green]Successfully recorded action for task '{task_name}'[/green]")
     else:
@@ -468,7 +476,12 @@ def delete_task(
     task_name: Annotated[str, typer.Argument(help="name of the task to delete")],
 ):
     """Deletes a task."""
-    result = app.delete_task(task_name)
+    try:
+        result = app.delete_task(task_name)
+    except Exception as e:
+        rich.print(f":x: [red]{str(e)}[/red]")
+        raise typer.Exit(code=GENERIC_FAIL_CODE)
+
     if result == TaskRecordResults.SUCCESS:
         rich.print(f":heavy_check_mark: [green]Successfully deleted task '{task_name}'[/green]")
     else:
@@ -542,14 +555,14 @@ def report_next(
     next_runs = app.get_next_runs(target_task, when)
     
     title = "Next Scheduled Task" if target_task else "Next Scheduled Tasks"
-    table = rich.table.Table(title=title)
+    table = Table(title=title)
     table.add_column("Task", justify="left", no_wrap=True)
     table.add_column("Next Run", justify="right", style="green")
     
     for task, next_run in next_runs:
         table.add_row(task.name, utils.human_date_str(next_run))
     
-    console = rich.console.Console()
+    console = Console()
     console.print(table)
 
 
