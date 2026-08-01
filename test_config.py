@@ -61,12 +61,12 @@ def test_init_config_no_file_found(tmp_path: Path):
     config = Configuration()
     test_config_dir = tmp_path / "app_config_new"
     test_config_dir.mkdir()
-    
+
     config.init_config(config_dir=str(test_config_dir))
 
     config_file_path = test_config_dir / CONFIG_FILE_NAME
     assert config_file_path.exists()
-    
+
     with config_file_path.open("r", encoding="utf8") as f:
         content = json.load(f)
 

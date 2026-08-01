@@ -1,11 +1,17 @@
 import pytest
 from maintenance_tracker import MaintenanceTracker, Action, Task, ActionRecordResults
-from repository import FileTaskRepository, FileActionRepository, TaskListPersister, ActionListPersister
+from repository import (
+    FileTaskRepository,
+    FileActionRepository,
+    TaskListPersister,
+    ActionListPersister,
+)
 from core import TaskLister, ActionLister
 from datetime import datetime, UTC, timedelta
 import json
 
 import pytest
+
 
 @pytest.fixture(scope="function")
 def task1():
@@ -16,19 +22,28 @@ def task1():
         interval=timedelta(minutes=60),
     )
 
+
 @pytest.fixture(scope="function")
 def action1_t1(task1: Task):
-    return Action(datetime(2024,1,1, tzinfo=UTC), task1, "ran task1 on new year day", "me")
+    return Action(
+        datetime(2024, 1, 1, tzinfo=UTC), task1, "ran task1 on new year day", "me"
+    )
+
 
 @pytest.fixture(scope="function")
 def action2_t1(task1: Task):
-    return Action(datetime(2024,1,2, tzinfo=UTC), task1, "ran task1 on the second of the year, 6 AM", "me")
+    return Action(
+        datetime(2024, 1, 2, tzinfo=UTC),
+        task1,
+        "ran task1 on the second of the year, 6 AM",
+        "me",
+    )
 
 
 def test_load_via_persister(tmp_path):
     # prepare task and action lists and save them using repository persisters
     t1 = Task(name="t_loaded")
-    a1 = Action(timestamp=datetime(2024,5,5, tzinfo=UTC), ref_task=t1, name="act")
+    a1 = Action(timestamp=datetime(2024, 5, 5, tzinfo=UTC), ref_task=t1, name="act")
 
     task_list = TaskLister([t1])
     action_list = ActionLister([a1])
@@ -53,13 +68,17 @@ def test_get_actions_for_task_with_end_only(task1):
     mt = MaintenanceTracker()
     mt.register_task(task1)
     # create actions around the cutoff
-    a_old = Action(timestamp=datetime(2024,1,1, tzinfo=UTC), ref_task=task1, name="old")
-    a_new = Action(timestamp=datetime(2024,6,1, tzinfo=UTC), ref_task=task1, name="new")
+    a_old = Action(
+        timestamp=datetime(2024, 1, 1, tzinfo=UTC), ref_task=task1, name="old"
+    )
+    a_new = Action(
+        timestamp=datetime(2024, 6, 1, tzinfo=UTC), ref_task=task1, name="new"
+    )
     mt.record_run(a_old)
     mt.record_run(a_new)
 
     # request actions with only end_time (should set start to datetime.min internally)
-    end_time = datetime(2024,2,1, tzinfo=UTC)
+    end_time = datetime(2024, 2, 1, tzinfo=UTC)
     actions = mt.get_actions_for_task(task1, start_time=None, end_time=end_time)
     assert len(actions) == 1
     assert actions[0].name == "old"
@@ -68,12 +87,12 @@ def test_get_actions_for_task_with_end_only(task1):
 def test_edit_action_change_timestamp_and_task(task1):
     mt = MaintenanceTracker()
     mt.register_task(task1)
-    a = Action(timestamp=datetime(2024,7,7, tzinfo=UTC), ref_task=task1, name="x")
+    a = Action(timestamp=datetime(2024, 7, 7, tzinfo=UTC), ref_task=task1, name="x")
     mt.record_run(a)
 
     # change timestamp
     ts = a.timestamp.isoformat()
-    new_ts = datetime(2025,1,1, tzinfo=UTC)
+    new_ts = datetime(2025, 1, 1, tzinfo=UTC)
     edited = mt.edit_action(task1.name, ts, new_timestamp=new_ts)
     assert edited is not None
     assert edited.timestamp == new_ts
@@ -89,11 +108,15 @@ def test_edit_action_change_timestamp_and_task(task1):
 def test_edit_action_failure_branch(monkeypatch, task1):
     mt = MaintenanceTracker()
     mt.register_task(task1)
-    a = Action(timestamp=datetime(2024,8,8, tzinfo=UTC), ref_task=task1, name="z")
+    a = Action(timestamp=datetime(2024, 8, 8, tzinfo=UTC), ref_task=task1, name="z")
     mt.record_run(a)
 
     # force record_run to return FAILURE to exercise the 'return None' branch
-    monkeypatch.setattr(MaintenanceTracker, 'record_run', lambda self, new_action: ActionRecordResults.FAILURE)
+    monkeypatch.setattr(
+        MaintenanceTracker,
+        "record_run",
+        lambda self, new_action: ActionRecordResults.FAILURE,
+    )
 
     res = mt.edit_action(task1.name, a.timestamp.isoformat(), new_actor="nobody")
     assert res is None

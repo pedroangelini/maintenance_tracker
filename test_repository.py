@@ -99,6 +99,7 @@ def test_persister_constructors(tmp_path: Path):
 def test_file_task_repository_basic_and_persistence(tmp_path: Path):
     # create repo with no initial tasks
     from core import Task, TaskLister
+
     repo = FileTaskRepository(dirname=str(tmp_path))
     assert repo.list() == TaskLister([])
 
@@ -111,10 +112,12 @@ def test_file_task_repository_basic_and_persistence(tmp_path: Path):
     repo.save()
     repo2 = FileTaskRepository(dirname=str(tmp_path))
     repo2.load()
-    assert repo2.get_by_name("repo_task").name == "repo_task"
+    task = repo2.get_by_name("repo_task")
+    assert task is not None
+    assert task.name == "repo_task"
 
     # remove
-    repo2.remove(repo2.get_by_name("repo_task"))
+    repo2.remove(task)
     assert repo2.get_by_name("repo_task") is None
 
 
@@ -123,8 +126,12 @@ def test_file_action_repository_basic_and_filters(tmp_path: Path):
     from datetime import datetime, timezone, timedelta
 
     task = Task(name="t1")
-    a1 = Action(timestamp=datetime(2024,1,1, tzinfo=timezone.utc), ref_task=task, name="a1")
-    a2 = Action(timestamp=datetime(2024,6,1, tzinfo=timezone.utc), ref_task=task, name="a2")
+    a1 = Action(
+        timestamp=datetime(2024, 1, 1, tzinfo=timezone.utc), ref_task=task, name="a1"
+    )
+    a2 = Action(
+        timestamp=datetime(2024, 6, 1, tzinfo=timezone.utc), ref_task=task, name="a2"
+    )
 
     repo = FileActionRepository(ActionLister([a1, a2]), dirname=str(tmp_path))
     assert a1 in repo.list()
@@ -148,6 +155,7 @@ def test_file_action_repository_basic_and_filters(tmp_path: Path):
 
     # ordered desc
     from core import Ordering
+
     res_ordered = repo.get_for_task(task, ordered=Ordering.DESC)
     assert res_ordered[0].timestamp >= res_ordered[1].timestamp
 
@@ -157,6 +165,7 @@ def test_file_action_repository_basic_and_filters(tmp_path: Path):
     repo2.load()
     assert any(a.name == "a1" for a in repo2.list())
     assert any(a.name == "a2" for a in repo2.list())
+
 
 def test_file_task_repository_returns_lister_on_list_and_load(tmp_path):
     """Ensure FileTaskRepository.list() and load() return TaskLister types."""

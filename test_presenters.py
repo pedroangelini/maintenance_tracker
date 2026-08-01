@@ -8,7 +8,12 @@ import presenters
 
 
 def test_rich_task_contains_fields():
-    t = Task("TName", description="Desc", start_time=datetime.datetime(2024,1,2,10,0,tzinfo=UTC), interval=datetime.timedelta(days=7))
+    t = Task(
+        "TName",
+        description="Desc",
+        start_time=datetime.datetime(2024, 1, 2, 10, 0, tzinfo=UTC),
+        interval=datetime.timedelta(days=7),
+    )
     out = presenters._rich_task(t)
     assert "TName" in out
     assert "Desc" in out
@@ -16,7 +21,12 @@ def test_rich_task_contains_fields():
 
 
 def test_output_task_list_json_and_csv(capsys):
-    t = Task("TaskJson", description="d", start_time=datetime.datetime(2024,1,1,tzinfo=UTC), interval=datetime.timedelta(days=1))
+    t = Task(
+        "TaskJson",
+        description="d",
+        start_time=datetime.datetime(2024, 1, 1, tzinfo=UTC),
+        interval=datetime.timedelta(days=1),
+    )
     tl = TaskLister([t])
     presenters._output_task_list_json(tl)
     out = capsys.readouterr().out
@@ -34,7 +44,12 @@ def test_output_task_list_json_and_csv(capsys):
 
 def test_output_action_list_json_and_csv(capsys):
     t = Task("Task1")
-    a = Action(timestamp=datetime.datetime(2024,1,1,tzinfo=UTC), ref_task=t, name="act", actor="me")
+    a = Action(
+        timestamp=datetime.datetime(2024, 1, 1, tzinfo=UTC),
+        ref_task=t,
+        name="act",
+        actor="me",
+    )
     al = ActionLister([a])
 
     presenters._output_action_list_json(al)
@@ -57,7 +72,12 @@ def test_print_task_and_action_tables(capsys):
     out = capsys.readouterr().out
     assert "TableTask" in out
 
-    a = Action(timestamp=datetime.datetime(2024,1,2,tzinfo=UTC), ref_task=t, name="doit", actor="me")
+    a = Action(
+        timestamp=datetime.datetime(2024, 1, 2, tzinfo=UTC),
+        ref_task=t,
+        name="doit",
+        actor="me",
+    )
     al = ActionLister([a])
     presenters._print_action_list_table(al)
     out2 = capsys.readouterr().out

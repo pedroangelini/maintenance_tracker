@@ -3,6 +3,7 @@
 Exceptions represent control-flow error conditions (not-found, duplicates, dangling dependencies).
 """
 
+
 class MaintenanceTrackerError(Exception):
     """Base class for tracker-related exceptions."""
 
