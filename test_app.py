@@ -376,7 +376,7 @@ def test_edit_task_failure(task1):
     from errors import DanglingActionsError
     with patch("app.tracker.delete_task", side_effect=DanglingActionsError("cannot delete")):
         with pytest.raises(DanglingActionsError):
-        app.edit_task(t1, {"name": "NewName"})
+            app.edit_task(t1, {"name": "NewName"})
 
 
 def test_get_actions_for_task_filtered_start_only_and_end_only(task1, action1_t1):
