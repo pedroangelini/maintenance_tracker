@@ -1,7 +1,7 @@
 import logging
 import utils
 from core import *
-from repository import TaskListPersister, ActionListPersister
+from repository import TaskListPersister, ActionListPersister, FileTaskRepository, FileActionRepository
 from enum import Enum
 from datetime import datetime, timedelta, UTC
 
