@@ -14,6 +14,9 @@ from core import Task, TaskLister, Action
 from maintenance_tracker import ActionRecordResults, TaskRecordResults, ActionLister
 import config as config_module
 
+import cli as cli_mod
+import typer
+
 runner = CliRunner()
 
 
