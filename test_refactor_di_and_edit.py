@@ -1,6 +1,7 @@
 import pytest
 from maintenance_tracker import MaintenanceTracker, Action, Task, ActionRecordResults, TaskRecordResults
 from core import TaskLister, ActionLister
+from test_core import task1, action1_t1, action2_t1
 from datetime import datetime, UTC, timedelta
 import utils
 
@@ -88,3 +89,30 @@ def test_edit_action_by_timestamp_and_name(task1):
     edited2 = mt.edit_action(task1.name, "do it", new_action_name="did it")
     assert edited2 is not None
     assert edited2.name == "did it"
+
+
+def test_edit_action_no_match(task1):
+    mt = MaintenanceTracker()
+    mt.register_task(task1)
+    res = mt.edit_action(task1.name, "non-existent")
+    assert res is None
+
+
+def test_edit_action_multiple_matches(task1):
+    mt = MaintenanceTracker()
+    mt.register_task(task1)
+    a1 = Action(timestamp=datetime(2024,3,3, tzinfo=UTC), ref_task=task1, name="dup")
+    a2 = Action(timestamp=datetime(2024,3,4, tzinfo=UTC), ref_task=task1, name="dup")
+    mt.record_run(a1)
+    mt.record_run(a2)
+    with pytest.raises(ValueError):
+        mt.edit_action(task1.name, "dup", new_actor="x")
+
+
+def test_edit_action_new_task_not_found(task1):
+    mt = MaintenanceTracker()
+    mt.register_task(task1)
+    a = Action(timestamp=datetime(2024,4,4, tzinfo=UTC), ref_task=task1, name="unique")
+    mt.record_run(a)
+    with pytest.raises(ValueError):
+        mt.edit_action(task1.name, a.timestamp.isoformat(), new_task_name="no-such-task")
