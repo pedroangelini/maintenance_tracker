@@ -48,12 +48,7 @@ def get_tasks_by_time(
     start_time: datetime, end_time: datetime | None = None
 ) -> TaskLister:
     global tracker
-    actions = tracker.get_actions_by_time(start_time, end_time)
-    tasks = TaskLister()
-    for action in actions:
-        if action.ref_task not in tasks:
-            tasks.append(action.ref_task)
-    return tasks
+    return tracker.get_tasks_by_time(start_time, end_time)
 
 
 
@@ -75,37 +70,15 @@ def get_all_actions() -> ActionLister:
 
 
 def edit_task(
-    old_task : Task,
+    old_task: Task,
     changes: dict,
-) -> Task:
+) -> Task | None:
+    """Delegate task replacement to the tracker and persist on success."""
     global tracker
-    logger.debug(f"replacing old task: {old_task.name} (id: {id(old_task)})")
-    new_task = old_task.replace(changes)
-    logger.debug(f"with new task: {new_task.name} (id: {id(new_task)})")
-
-    tracker.register_task(new_task)
-
-    
-    actions = tracker.get_actions_for_task(old_task)
-    logger.debug(f"updating {len(actions)} actions to point to new task")
-    for action in actions:
-        new_action = action.replace({"ref_task":new_task})
-        tracker.record_run(new_action)
-        tracker.delete_run(action)
-        logger.debug(f"updated {new_action.timestamp}")
-
-
-
-    logger.debug("deleting old task")
-    if tracker.delete_task(old_task) != TaskRecordResults.SUCCESS:
-        logger.fatal("error editing (replacing) task - could not move the old actions to the new task")
-        return None
-
-
-    tracker.save()
-    
+    new_task = tracker.edit_task(old_task, changes)
+    if new_task:
+        tracker.save()
     return new_task
-
 def get_actions_for_task_filtered(
     task_name: str,
     start_time: datetime | None = None,
@@ -113,36 +86,7 @@ def get_actions_for_task_filtered(
     action_name: str | None = None,
 ) -> ActionLister:
     global tracker
-    task = get_task_by_name(task_name)
-    if task is None:
-        return ActionLister([])
-
-    actions = tracker.get_actions_for_task(task)
-    filtered_actions = ActionLister()
-
-    if action_name:
-        for action in actions:
-            if action.name == action_name:
-                filtered_actions.append(action)
-        return filtered_actions
-
-    start = start_time
-    end = end_time
-
-    if start and not end:
-        end = datetime.now(UTC)
-    
-    if not start and end:
-        start = datetime.min.replace(tzinfo=UTC)
-
-    for action in actions:
-        if start and action.timestamp < start:
-            continue
-        if end and action.timestamp > end:
-            continue
-        filtered_actions.append(action)
-
-    return filtered_actions
+    return tracker.get_actions_for_task_filtered(task_name, start_time, end_time, action_name)
 
 def record_run(
     task_name: str,
@@ -264,51 +208,16 @@ def edit_action(
     new_action_name: str | None = None,
     new_task_name: str | None = None,
 ) -> Action | None:
-    """Edits an action. Returns the updated action or None if not found."""
+    """Delegate action editing to the tracker and persist on success."""
     global tracker
-    
-    # Find the action to edit
-    actions_to_edit = []
-    try:
-        # Try parsing as timestamp first
-        timestamp = utils.parse_date(action_ref)
-        action = get_action(task_name, timestamp)
-        if action:
-            actions_to_edit.append(action)
-    except Exception:
-        # If timestamp parsing fails, try as action name
-        action_list = get_actions_for_task_filtered(task_name, action_name=action_ref)
-        actions_to_edit = list(action_list)
-    
-    if len(actions_to_edit) == 0:
-        return None
-    elif len(actions_to_edit) > 1:
-        raise ValueError(f"Multiple actions found matching '{action_ref}'. Please provide a timestamp for disambiguation.")
-    
-    old_action = actions_to_edit[0]
-    
-    # Build the updated action
-    updated_fields = {}
-    if new_actor is not None:
-        updated_fields['actor'] = new_actor
-    if new_timestamp is not None:
-        updated_fields['timestamp'] = new_timestamp
-    if new_action_name is not None:
-        updated_fields['name'] = new_action_name
-    if new_task_name is not None:
-        new_task = get_task_by_name(new_task_name)
-        if new_task is None:
-            raise ValueError(f"Task '{new_task_name}' not found")
-        updated_fields['ref_task'] = new_task
-    
-    new_action = old_action.replace(updated_fields)
-    
-    # Delete old action and add new one
-    tracker.delete_run(old_action)
-    result = tracker.record_run(new_action)
-    
-    if result in [ActionRecordResults.SUCCESS, ActionRecordResults.TASK_MISMATCH]:
+    new_action = tracker.edit_action(
+        task_name,
+        action_ref,
+        new_actor=new_actor,
+        new_timestamp=new_timestamp,
+        new_action_name=new_action_name,
+        new_task_name=new_task_name,
+    )
+    if new_action:
         tracker.save()
-        return new_action
-    
-    return None
+    return new_action
