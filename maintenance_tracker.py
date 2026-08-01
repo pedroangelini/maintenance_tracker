@@ -4,6 +4,7 @@ from core import *
 from repository import TaskListPersister, ActionListPersister, FileTaskRepository, FileActionRepository
 from enum import Enum
 from datetime import datetime, timedelta, UTC
+from errors import DuplicateTaskError, DanglingActionsError
 
 logger = logging.getLogger(__name__)
 
@@ -14,6 +15,7 @@ class ActionRecordResults(Enum):
     FAILURE = (
         0  # for some reason we couldn't add the task, but did not raise an exception
     )
+
 
 class TaskRecordResults(Enum):
     SUCCESS = 1  # all good, and task of this action matches the task already registered
@@ -78,7 +80,16 @@ class MaintenanceTracker:
             )
 
     def register_task(self, new_task: Task) -> TaskRecordResults:
-        self.task_list.append(new_task)
+        """Register a new task.
+
+        Raises DuplicateTaskError if a task with the same name already exists.
+        Returns TaskRecordResults.SUCCESS on success.
+        """
+        try:
+            self.task_list.append(new_task)
+        except Exception as e:
+            # Normalize TaskWithSameNameError from core.TaskLister to DuplicateTaskError
+            raise DuplicateTaskError(str(e)) from e
         return TaskRecordResults.SUCCESS
 
     def record_run(self, new_action: Action) -> ActionRecordResults:
@@ -99,13 +110,21 @@ class MaintenanceTracker:
         """
         ret_code = ActionRecordResults.FAILURE
 
-        # check if we've seen this task before, if not, register it
+        # check if we've seen this task before
         if self.task_list._check_task_name_available(new_action.ref_task.name):
             logger.info(
                 f"adding an action to a task that did not exist before - {new_action.ref_task.name}"
             )
+            # register the referenced task, then still record the action
             self.register_task(new_action.ref_task)
+            try:
+                self.action_list.append(new_action)
+                ret_code = ActionRecordResults.SUCCESS
+            except Exception:
+                # keep original failure semantics if append fails
+                ret_code = ActionRecordResults.FAILURE
         else:
+            # task is already registered, append action
             self.action_list.append(new_action)
 
             # warn the user if ref_task is different from the one in the list
@@ -247,14 +266,19 @@ class MaintenanceTracker:
             task (Task): the task to be deleted
 
         Returns:
-            TaskRecordResults: SUCCESS or FAILURE depending on wether the task had actions attached to it
+            TaskRecordResults: SUCCESS on success
+
+        Raises:
+            DanglingActionsError: when the task has dependent actions and cannot be deleted
         """
         logger.debug(f"deleting task {task.name}")
         if dangling_actions := self.get_actions_for_task(task):
             logger.error(f"cannot delete task {task} because it has actions that depend on it")
             logger.debug(f"dangling actions: {dangling_actions}")
-            return TaskRecordResults.FAILURE
-        
+            raise DanglingActionsError(
+                f"Task '{task.name}' has {len(dangling_actions)} action(s) and cannot be deleted"
+            )
+
         self.task_list.remove(task)
         return TaskRecordResults.SUCCESS
 
@@ -349,9 +373,12 @@ class MaintenanceTracker:
             logger.debug(f"updated {new_action.timestamp}")
 
         logger.debug("deleting old task")
-        if self.delete_task(old_task) != TaskRecordResults.SUCCESS:
+        # delete_task will raise DanglingActionsError if it cannot be deleted
+        try:
+            self.delete_task(old_task)
+        except DanglingActionsError:
             logger.fatal("error editing (replacing) task - could not move the old actions to the new task")
-            return None
+            raise
 
         return new_task
 
