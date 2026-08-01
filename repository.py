@@ -150,28 +150,43 @@ class TaskListPersister(Persister):
 
 # --- Repository wrappers to enable dependency injection and a repository pattern ---
 class TaskRepository:
-    """Simple repository interface for tasks."""
+    """Repository interface for tasks.
+
+    Implementations must provide list/get/add/remove/save/load. Methods should return
+    core.TaskLister where appropriate (list/load) to keep types consistent.
+    """
 
     def list(self):
+        """Return a TaskLister containing all tasks."""
         raise NotImplementedError
 
     def get_by_name(self, name: str):
+        """Return a Task by exact name or None if not found."""
         raise NotImplementedError
 
     def add(self, task):
+        """Add a Task to the repository."""
         raise NotImplementedError
 
     def remove(self, task):
+        """Remove a Task from the repository."""
         raise NotImplementedError
 
     def save(self):
+        """Persist repository contents to storage."""
         raise NotImplementedError
 
     def load(self):
+        """Load repository contents from storage and return a TaskLister."""
         raise NotImplementedError
 
 
 class FileTaskRepository(TaskRepository):
+    """File-backed TaskRepository using TaskListPersister internally.
+
+    list() returns a TaskLister instance and add/remove mutate that lister.
+    """
+
     def __init__(self, task_list=None, dirname=None, filename=None):
         import core
 
@@ -183,50 +198,75 @@ class FileTaskRepository(TaskRepository):
         self.filename = self.persister.filename
 
     def list(self):
+        """Return the TaskLister backing this repository."""
         return self.task_list
 
     def get_by_name(self, name: str):
+        """Return a Task by name or None."""
         return self.task_list.get_task_by_name(name)
 
     def add(self, task):
+        """Append a task to the internal TaskLister."""
         self.task_list.append(task)
 
     def remove(self, task):
+        """Remove a task from the internal TaskLister."""
         self.task_list.remove(task)
 
     def save(self):
+        """Persist the task list to disk via the persister."""
         return self.persister.save()
 
     def load(self):
+        """Load persisted task list via the persister and return TaskLister."""
         return self.persister.load()
 
 
 class ActionRepository:
-    """Simple repository interface for actions."""
+    """Repository interface for actions.
+
+    Implementations should return core.ActionLister from list(), get_for_task() and get_by_time()
+    to keep the public API consistent.
+    """
 
     def list(self):
+        """Return an ActionLister of all actions."""
         raise NotImplementedError
 
     def add(self, action):
+        """Add an Action to the repository."""
         raise NotImplementedError
 
     def remove(self, action):
+        """Remove an Action from the repository."""
         raise NotImplementedError
 
     def get_for_task(self, task):
+        """Return ActionLister of actions for a given task (optionally filtered by time).
+
+        Signature should accept (task, start_time=None, end_time=None, ordered=False).
+        """
         raise NotImplementedError
 
     def get_by_time(self, start_time, end_time=None):
+        """Return an ActionLister of actions within a time range."""
         raise NotImplementedError
 
     def save(self):
+        """Persist repository contents to storage."""
         raise NotImplementedError
 
     def load(self):
+        """Load repository contents from storage and return an ActionLister."""
         raise NotImplementedError
 
 
 class FileActionRepository(ActionRepository):
+    """File-backed ActionRepository using ActionListPersister internally.
+
+    Methods return ActionLister to match the repository contract.
+    """
+
     def __init__(self, action_list=None, dirname=None, filename=None):
         import core
 
@@ -238,15 +278,19 @@ class FileActionRepository(ActionRepository):
         self.filename = self.persister.filename
 
     def list(self):
+        """Return the ActionLister backing this repository."""
         return self.action_list
 
     def add(self, action):
+        """Append an action to the internal ActionLister."""
         self.action_list.append(action)
 
     def remove(self, action):
+        """Remove an action from the internal ActionLister."""
         self.action_list.remove(action)
 
     def get_for_task(self, task, start_time=None, end_time=None, ordered=False):
+        """Return an ActionLister filtered by task and optional time range/order."""
         # replicate existing filtering semantics
         result_list = [a for a in self.action_list if a.ref_task.name == task.name]
         if start_time or end_time:
@@ -258,15 +302,21 @@ class FileActionRepository(ActionRepository):
         if ordered:
             from core import Ordering
             result_list = sorted(result_list, key=lambda a: a.timestamp, reverse=(ordered == Ordering.DESC))
-        return result_list
+        # return ActionLister for consistency
+        from core import ActionLister as _ActionLister
+        return _ActionLister(result_list)
 
     def get_by_time(self, start_time, end_time=None):
+        """Return an ActionLister of actions within a time window."""
         if end_time is None:
             end_time = datetime.now(timezone.utc)
-        return [a for a in self.action_list if start_time <= a.timestamp <= end_time]
+        from core import ActionLister as _ActionLister
+        return _ActionLister([a for a in self.action_list if start_time <= a.timestamp <= end_time])
 
     def save(self):
+        """Persist the action list to disk via the persister."""
         return self.persister.save()
 
     def load(self):
+        """Load persisted action list via the persister and return ActionLister."""
         return self.persister.load()
