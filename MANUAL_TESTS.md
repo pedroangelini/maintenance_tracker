@@ -92,3 +92,10 @@ mtnt --config-dir "$MTNT_TEST_DIR" delete action "Replace filter"
 Expected: each command explains the failure without corrupting previously
 saved tasks or actions. Finally, rerun `list tasks` and `list actions` to
 confirm persistence and the expected final state.
+
+## Test coverage
+
+Run `uv run pytest --cov --cov-report=xml --cov-report=term-missing` to get both a nice terminal output and a xml file that works well with the "coverage gutters" vscode extension
+
+see about reporting here 
+[https://pytest-cov.readthedocs.io/en/latest/reporting.html]

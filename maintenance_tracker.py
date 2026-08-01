@@ -1,5 +1,6 @@
 import logging
 from core import *
+from repository import TaskListPersister, ActionListPersister, FileTaskRepository, FileActionRepository
 from enum import Enum
 from datetime import datetime, timedelta, UTC
 
@@ -19,7 +20,11 @@ class TaskRecordResults(Enum):
 
 
 class MaintenanceTracker:
-    """maintenance_tracker sets up lists of tasks and actions related to those tasks."""
+    """maintenance_tracker sets up lists of tasks and actions related to those tasks.
+
+    Supports dependency injection of task and action repositories while preserving
+    backward-compatible attributes (task_list, action_list, task_list_saver, action_list_saver).
+    """
 
     task_list: TaskLister
     action_list: ActionLister
@@ -27,24 +32,43 @@ class MaintenanceTracker:
     action_list_saver: ActionListPersister
 
     def __init__(
-        self, load=False, save_dir=None, save_actions_file=None, save_task_file=None
+        self,
+        load=False,
+        save_dir=None,
+        save_actions_file=None,
+        save_task_file=None,
+        task_repo=None,
+        action_repo=None,
     ):
-        self.task_list = TaskLister([])
-        self.action_list = ActionLister([])
-
         logger.debug(
-            f"Initializing tracker: {load =}, {save_dir = }, {save_actions_file = }, {save_task_file = }"
+            f"Initializing tracker: {load =}, {save_dir = }, {save_actions_file = }, {save_task_file = }, {task_repo = }, {action_repo = }"
         )
-        self.task_list_saver = TaskListPersister(
-            self.task_list, save_dir, save_task_file
-        )
-        self.action_list_saver = ActionListPersister(
-            self.action_list, save_dir, save_actions_file
-        )
+
+        # If repositories were provided, use them; otherwise create file-backed repos.
+        if task_repo is None:
+            task_repo = FileTaskRepository(task_list=TaskLister([]), dirname=save_dir, filename=save_task_file)
+        if action_repo is None:
+            action_repo = FileActionRepository(action_list=ActionLister([]), dirname=save_dir, filename=save_actions_file)
+
+        # expose repo objects
+        self.task_repo = task_repo
+        self.action_repo = action_repo
+
+        # keep compatibility with old attribute names
+        self.task_list = self.task_repo.list()
+        self.action_list = self.action_repo.list()
+
+        # expose persisters for backward compatibility/tests that reference them
+        self.task_list_saver = getattr(self.task_repo, 'persister', None)
+        self.action_list_saver = getattr(self.action_repo, 'persister', None)
 
         if load:
-            self.task_list_saver.load()
-            self.action_list_saver.load()
+            # load via repositories
+            if hasattr(self.task_repo, 'load'):
+                self.task_repo.load()
+            if hasattr(self.action_repo, 'load'):
+                self.action_repo.load()
+
             logger.debug(
                 f"loaded tasks from : {Path(self.task_list_saver.dirname) / Path(self.task_list_saver.filename)}"
             )
