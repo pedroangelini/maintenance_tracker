@@ -1,10 +1,16 @@
 import logging
 import utils
 from core import *
-from repository import TaskListPersister, ActionListPersister, FileTaskRepository, FileActionRepository
+from repository import (
+    TaskListPersister,
+    ActionListPersister,
+    FileTaskRepository,
+    FileActionRepository,
+)
 from enum import Enum
 from datetime import datetime, timedelta, UTC
 from errors import DuplicateTaskError, DanglingActionsError
+from typing import Optional
 
 logger = logging.getLogger(__name__)
 
@@ -31,8 +37,8 @@ class MaintenanceTracker:
 
     task_list: TaskLister
     action_list: ActionLister
-    task_list_saver: TaskListPersister
-    action_list_saver: ActionListPersister
+    task_list_saver: Optional[TaskListPersister]
+    action_list_saver: Optional[ActionListPersister]
 
     def __init__(
         self,
@@ -138,11 +144,11 @@ class MaintenanceTracker:
         return ret_code
 
     def get_actions_for_task(
-        self, 
-        target_task: Task, 
-        start_time: datetime | None = None, 
+        self,
+        target_task: Task,
+        start_time: datetime | None = None,
         end_time: datetime | None = None,
-        ordered: Ordering | bool = False
+        ordered: Ordering | None = None,
     ) -> ActionLister:
         """gets a list of actions for a given task within a time range"""
         # Delegate to action repository to retrieve actions for the task

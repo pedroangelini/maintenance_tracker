@@ -8,6 +8,8 @@ from enum import Enum
 from typing import Optional
 
 import rich
+from rich.table import Table
+from rich.console import Console
 import typer
 from typing_extensions import Annotated
 
@@ -553,14 +555,14 @@ def report_next(
     next_runs = app.get_next_runs(target_task, when)
     
     title = "Next Scheduled Task" if target_task else "Next Scheduled Tasks"
-    table = rich.table.Table(title=title)
+    table = Table(title=title)
     table.add_column("Task", justify="left", no_wrap=True)
     table.add_column("Next Run", justify="right", style="green")
     
     for task, next_run in next_runs:
         table.add_row(task.name, utils.human_date_str(next_run))
     
-    console = rich.console.Console()
+    console = Console()
     console.print(table)
 
 
