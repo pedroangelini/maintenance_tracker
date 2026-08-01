@@ -1,4 +1,5 @@
 import logging
+import utils
 from core import *
 from enum import Enum
 from datetime import datetime, timedelta, UTC
@@ -246,6 +247,147 @@ class MaintenanceTracker:
         
         self.action_list.remove(action)
         return ActionRecordResults.SUCCESS
+
+
+    # --- Business helper methods moved from app.py ---
+    def get_tasks_by_time(self, start_time: datetime, end_time: datetime | None = None) -> TaskLister:
+        """Returns tasks that have actions in a given time range."""
+        actions = self.get_actions_by_time(start_time, end_time)
+        tasks = TaskLister()
+        for action in actions:
+            if action.ref_task not in tasks:
+                tasks.append(action.ref_task)
+        return tasks
+
+
+    def get_actions_for_task_filtered(
+        self,
+        task_name: str,
+        start_time: datetime | None = None,
+        end_time: datetime | None = None,
+        action_name: str | None = None,
+    ) -> ActionLister:
+        """Return actions for a task filtered by time range and/or action name.
+
+        This mirrors the filtering behavior previously implemented in app.py but
+        keeps the actual business logic inside the tracker domain.
+        """
+        task = self.task_list.get_task_by_name(task_name)
+        if task is None:
+            return ActionLister([])
+
+        actions = self.get_actions_for_task(task)
+        filtered_actions = ActionLister()
+
+        if action_name:
+            for action in actions:
+                if action.name == action_name:
+                    filtered_actions.append(action)
+            return filtered_actions
+
+        start = start_time
+        end = end_time
+
+        if start and not end:
+            end = datetime.now(UTC)
+        if not start and end:
+            start = datetime.min.replace(tzinfo=UTC)
+
+        for action in actions:
+            if start and action.timestamp < start:
+                continue
+            if end and action.timestamp > end:
+                continue
+            filtered_actions.append(action)
+
+        return filtered_actions
+
+
+    def edit_task(self, old_task: Task, changes: dict) -> Task | None:
+        """Replace a task and move existing actions to the new task.
+
+        Returns the new task on success, or None on failure.
+        """
+        logger.debug(f"replacing old task: {old_task.name} (id: {id(old_task)})")
+        new_task = old_task.replace(changes)
+        logger.debug(f"with new task: {new_task.name} (id: {id(new_task)})")
+
+        # register the new task
+        self.register_task(new_task)
+
+        # move actions to the new task
+        actions = self.get_actions_for_task(old_task)
+        logger.debug(f"updating {len(actions)} actions to point to new task")
+        for action in actions:
+            new_action = action.replace({"ref_task": new_task})
+            self.record_run(new_action)
+            self.delete_run(action)
+            logger.debug(f"updated {new_action.timestamp}")
+
+        logger.debug("deleting old task")
+        if self.delete_task(old_task) != TaskRecordResults.SUCCESS:
+            logger.fatal("error editing (replacing) task - could not move the old actions to the new task")
+            return None
+
+        return new_task
+
+
+    def edit_action(
+        self,
+        task_name: str,
+        action_ref: str,
+        new_actor: str | None = None,
+        new_timestamp: datetime | None = None,
+        new_action_name: str | None = None,
+        new_task_name: str | None = None,
+    ) -> Action | None:
+        """Edit an action identified by a timestamp or name. Returns the updated action or None."""
+        # Find the action to edit
+        actions_to_edit = []
+        try:
+            # Try parsing as timestamp first
+            timestamp = utils.parse_date(action_ref)
+            action = self.get_actions_for_task(self.task_list.get_task_by_name(task_name))
+            # get_action-like behavior: find exact timestamp match
+            for a in action:
+                if a.timestamp == timestamp:
+                    actions_to_edit.append(a)
+        except Exception:
+            # If timestamp parsing fails, try as action name
+            action_list = self.get_actions_for_task_filtered(task_name, action_name=action_ref)
+            actions_to_edit = list(action_list)
+
+        if len(actions_to_edit) == 0:
+            return None
+        elif len(actions_to_edit) > 1:
+            raise ValueError(f"Multiple actions found matching '{action_ref}'. Please provide a timestamp for disambiguation.")
+
+        old_action = actions_to_edit[0]
+
+        # Build the updated action
+        updated_fields = {}
+        if new_actor is not None:
+            updated_fields['actor'] = new_actor
+        if new_timestamp is not None:
+            updated_fields['timestamp'] = new_timestamp
+        if new_action_name is not None:
+            updated_fields['name'] = new_action_name
+        if new_task_name is not None:
+            new_task = self.task_list.get_task_by_name(new_task_name)
+            if new_task is None:
+                raise ValueError(f"Task '{new_task_name}' not found")
+            updated_fields['ref_task'] = new_task
+
+        new_action = old_action.replace(updated_fields)
+
+        # Delete old action and add new one
+        self.delete_run(old_action)
+        result = self.record_run(new_action)
+
+        if result in [ActionRecordResults.SUCCESS, ActionRecordResults.TASK_MISMATCH]:
+            return new_action
+
+        return None
 
 
     def save(self) -> None:
