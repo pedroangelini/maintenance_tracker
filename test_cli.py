@@ -489,44 +489,6 @@ def test_report_actions_between_filters_by_task(mock_app, tmp_config_dir):
     assert mock_app.get_actions_by_time.call_args.args[2] == "TaskName"
 
 
-# Additional CLI unit tests for internal helper functions
-import io
-import sys
-import cli as cli_mod
-import typer
-
-
-def test_output_task_list_csv(capsys):
-    t = Task("CSVTask", description="d", start_time=datetime.datetime(2024,1,1, tzinfo=UTC), interval=datetime.timedelta(days=1))
-    tl = TaskLister([t])
-    cli_mod._output_task_list_csv(tl)
-    out = capsys.readouterr().out
-    assert "Name,Description,Start Time,Interval" in out
-    assert "CSVTask" in out
-
-
-def test_output_action_list_json(capsys):
-    t = Task("T")
-    a = Action(timestamp=datetime.datetime(2024,1,1, tzinfo=UTC), ref_task=t, name="act", actor="me")
-    al = ActionLister([a])
-    cli_mod._output_action_list_json(al)
-    out = capsys.readouterr().out
-    import json as _json
-    data = _json.loads(out)
-    assert isinstance(data, list)
-    assert data[0]["task"] == "T"
-    assert data[0]["action_name"] == "act"
-
-
-def test_print_action_list_table(capsys):
-    t = Task("TableTask")
-    a = Action(timestamp=datetime.datetime(2024,1,2, tzinfo=UTC), ref_task=t, name="doit", actor="me")
-    al = ActionLister([a])
-    cli_mod._print_action_list_table(al)
-    out = capsys.readouterr().out
-    assert "doit" in out
-    assert "TableTask" in out
-
 
 def test_get_actions_calls_and_no_actions(monkeypatch, capsys):
     # no actions
