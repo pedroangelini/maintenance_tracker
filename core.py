@@ -28,7 +28,7 @@ from dataclasses import asdict, dataclass, is_dataclass
 from datetime import UTC, datetime, timedelta, timezone
 from enum import Enum
 from pathlib import Path
-from typing import Any, Optional, Sequence
+from typing import Any, Optional, Sequence, Iterable
 
 import utils
 
@@ -53,7 +53,7 @@ class Task:
 
     def copy(self):
         return deepcopy(self)
-    
+
     def replace(self, changes: dict) -> Task:
         return dataclasses.replace(self, **changes)
 
@@ -165,9 +165,10 @@ class Action:
 
     def copy(self):
         return deepcopy(self)
-    
+
     def replace(self, changes: dict) -> Action:
         return dataclasses.replace(self, **changes)
+
 
 class TaskWithSameNameError(KeyError):
     pass
@@ -198,7 +199,7 @@ class TaskLister(UserList):
     def add(self, new_task: Task) -> None:
         self.append(new_task)
 
-    def extend(self, other: Sequence[Task]) -> None:
+    def extend(self, other: Iterable[Task]) -> None:
         # conform to UserList.extend signature (other)
         for t in other:
             self.append(t)
@@ -212,7 +213,7 @@ class TaskLister(UserList):
             logger.debug(error_msg)
             raise (TaskWithSameNameError(error_msg))
 
-    def get_task_by_name(self, target_name: str) -> Task | None:
+    def get_task_by_name(self, target_name: Optional[str]) -> Task | None:
         for t in self.data:
             if t.name == target_name:
                 return t
@@ -305,5 +306,3 @@ class ActionLister(UserList):
                 return False
 
         return True
-
-

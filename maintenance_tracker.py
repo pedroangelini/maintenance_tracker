@@ -25,7 +25,9 @@ class ActionRecordResults(Enum):
 
 class TaskRecordResults(Enum):
     SUCCESS = 1  # all good, and task of this action matches the task already registered
-    FAILURE = 0  # for some reason we couldn't add the task, but did not raise an exception
+    FAILURE = (
+        0  # for some reason we couldn't add the task, but did not raise an exception
+    )
 
 
 class MaintenanceTracker:
@@ -37,8 +39,8 @@ class MaintenanceTracker:
 
     task_list: TaskLister
     action_list: ActionLister
-    task_list_saver: Optional[TaskListPersister]
-    action_list_saver: Optional[ActionListPersister]
+    task_list_saver: TaskListPersister
+    action_list_saver: ActionListPersister
 
     def __init__(
         self,
@@ -55,9 +57,15 @@ class MaintenanceTracker:
 
         # If repositories were provided, use them; otherwise create file-backed repos.
         if task_repo is None:
-            task_repo = FileTaskRepository(task_list=TaskLister([]), dirname=save_dir, filename=save_task_file)
+            task_repo = FileTaskRepository(
+                task_list=TaskLister([]), dirname=save_dir, filename=save_task_file
+            )
         if action_repo is None:
-            action_repo = FileActionRepository(action_list=ActionLister([]), dirname=save_dir, filename=save_actions_file)
+            action_repo = FileActionRepository(
+                action_list=ActionLister([]),
+                dirname=save_dir,
+                filename=save_actions_file,
+            )
 
         # expose repo objects
         self.task_repo = task_repo
@@ -68,19 +76,35 @@ class MaintenanceTracker:
         self.action_list = self.action_repo.list()
 
         # expose persisters for backward compatibility/tests that reference them
-        self.task_list_saver = getattr(self.task_repo, 'persister', None)
-        self.action_list_saver = getattr(self.action_repo, 'persister', None)
+        # If a repo does not have a persister, create a default persister to keep attributes non-None
+        self.task_list_saver = getattr(
+            self.task_repo,
+            "persister",
+            TaskListPersister(self.task_list, dirname=save_dir, filename=save_task_file),
+        )
+        self.action_list_saver = getattr(
+            self.action_repo,
+            "persister",
+            ActionListPersister(self.action_list, dirname=save_dir, filename=save_actions_file),
+        )
 
         if load:
             # load via repositories
-            if hasattr(self.task_repo, 'load'):
+            if hasattr(self.task_repo, "load"):
                 self.task_repo.load()
-            if hasattr(self.action_repo, 'load'):
+            if hasattr(self.action_repo, "load"):
                 self.action_repo.load()
 
-            logger.debug(
-                f"loaded tasks from : {Path(self.task_list_saver.dirname) / Path(self.task_list_saver.filename)}"
-            )
+            # Log loaded paths if persisters are available
+            if self.task_list_saver is not None:
+                try:
+                    from pathlib import Path
+
+                    logger.debug(
+                        f"loaded tasks from : {Path(self.task_list_saver.dirname) / Path(self.task_list_saver.filename)}"
+                    )
+                except Exception:
+                    logger.debug("Loaded tasks, but could not determine path for logging")
             logger.debug(
                 f"num tasks: {len(self.task_list)}, num actions: {len(self.action_list)}"
             )
@@ -153,10 +177,14 @@ class MaintenanceTracker:
         """gets a list of actions for a given task within a time range"""
         # Delegate to action repository to retrieve actions for the task
         try:
-            result = self.action_repo.get_for_task(target_task, start_time=start_time, end_time=end_time, ordered=ordered)
+            result = self.action_repo.get_for_task(
+                target_task, start_time=start_time, end_time=end_time, ordered=ordered
+            )
         except TypeError:
             # Some repositories might not accept keyword args; fallback to positional
-            result = self.action_repo.get_for_task(target_task, start_time, end_time, ordered)
+            result = self.action_repo.get_for_task(
+                target_task, start_time, end_time, ordered
+            )
 
         # Ensure we return an ActionLister
         if isinstance(result, ActionLister):
@@ -267,7 +295,9 @@ class MaintenanceTracker:
         """
         logger.debug(f"deleting task {task.name}")
         if dangling_actions := self.get_actions_for_task(task):
-            logger.error(f"cannot delete task {task} because it has actions that depend on it")
+            logger.error(
+                f"cannot delete task {task} because it has actions that depend on it"
+            )
             logger.debug(f"dangling actions: {dangling_actions}")
             raise DanglingActionsError(
                 f"Task '{task.name}' has {len(dangling_actions)} action(s) and cannot be deleted"
@@ -287,14 +317,15 @@ class MaintenanceTracker:
             TaskRecordResults: only returns SUCCESS (otherwise fails ungracefully for now)
         """
         logger.debug(f"deleting action {action.ref_task.name}: {action.timestamp}")
-        
+
         # Delegate delete to action repository
         self.action_repo.remove(action)
         return ActionRecordResults.SUCCESS
 
-
     # --- Business helper methods moved from app.py ---
-    def get_tasks_by_time(self, start_time: datetime, end_time: datetime | None = None) -> TaskLister:
+    def get_tasks_by_time(
+        self, start_time: datetime, end_time: datetime | None = None
+    ) -> TaskLister:
         """Returns tasks that have actions in a given time range."""
         actions = self.get_actions_by_time(start_time, end_time)
         tasks = TaskLister()
@@ -302,7 +333,6 @@ class MaintenanceTracker:
             if action.ref_task not in tasks:
                 tasks.append(action.ref_task)
         return tasks
-
 
     def get_actions_for_task_filtered(
         self,
@@ -346,7 +376,6 @@ class MaintenanceTracker:
 
         return filtered_actions
 
-
     def edit_task(self, old_task: Task, changes: dict) -> Task | None:
         """Replace a task and move existing actions to the new task.
 
@@ -373,11 +402,12 @@ class MaintenanceTracker:
         try:
             self.delete_task(old_task)
         except DanglingActionsError:
-            logger.fatal("error editing (replacing) task - could not move the old actions to the new task")
+            logger.fatal(
+                "error editing (replacing) task - could not move the old actions to the new task"
+            )
             raise
 
         return new_task
-
 
     def edit_action(
         self,
@@ -394,36 +424,44 @@ class MaintenanceTracker:
         try:
             # Try parsing as timestamp first
             timestamp = utils.parse_date(action_ref)
-            action = self.get_actions_for_task(self.task_list.get_task_by_name(task_name))
+            task = self.task_list.get_task_by_name(task_name)
+            if task is None:
+                action = ActionLister()
+            else:
+                action = self.get_actions_for_task(task)
             # get_action-like behavior: find exact timestamp match
             for a in action:
                 if a.timestamp == timestamp:
                     actions_to_edit.append(a)
         except Exception:
             # If timestamp parsing fails, try as action name
-            action_list = self.get_actions_for_task_filtered(task_name, action_name=action_ref)
+            action_list = self.get_actions_for_task_filtered(
+                task_name, action_name=action_ref
+            )
             actions_to_edit = list(action_list)
 
         if len(actions_to_edit) == 0:
             return None
         elif len(actions_to_edit) > 1:
-            raise ValueError(f"Multiple actions found matching '{action_ref}'. Please provide a timestamp for disambiguation.")
+            raise ValueError(
+                f"Multiple actions found matching '{action_ref}'. Please provide a timestamp for disambiguation."
+            )
 
         old_action = actions_to_edit[0]
 
         # Build the updated action
         updated_fields = {}
         if new_actor is not None:
-            updated_fields['actor'] = new_actor
+            updated_fields["actor"] = new_actor
         if new_timestamp is not None:
-            updated_fields['timestamp'] = new_timestamp
+            updated_fields["timestamp"] = new_timestamp
         if new_action_name is not None:
-            updated_fields['name'] = new_action_name
+            updated_fields["name"] = new_action_name
         if new_task_name is not None:
             new_task = self.task_list.get_task_by_name(new_task_name)
             if new_task is None:
                 raise ValueError(f"Task '{new_task_name}' not found")
-            updated_fields['ref_task'] = new_task
+            updated_fields["ref_task"] = new_task
 
         new_action = old_action.replace(updated_fields)
 
@@ -436,7 +474,8 @@ class MaintenanceTracker:
 
         return None
 
-
     def save(self) -> None:
-        self.task_list_saver.save()
-        self.action_list_saver.save()
+        if self.task_list_saver is not None:
+            self.task_list_saver.save()
+        if self.action_list_saver is not None:
+            self.action_list_saver.save()

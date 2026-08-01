@@ -2,6 +2,7 @@
 
 This module centralizes formatting so business logic and app code remain presentation-free.
 """
+
 from __future__ import annotations
 
 import csv
@@ -69,12 +70,14 @@ def _output_task_list_json(task_list: TaskLister) -> None:
     """Output task list in JSON format"""
     tasks_data = []
     for t in task_list:
-        tasks_data.append({
-            "name": t.name,
-            "description": t.description,
-            "start_time": t.start_time.isoformat() if t.start_time else None,
-            "interval": str(t.interval) if t.interval else None,
-        })
+        tasks_data.append(
+            {
+                "name": t.name,
+                "description": t.description,
+                "start_time": t.start_time.isoformat() if t.start_time else None,
+                "interval": str(t.interval) if t.interval else None,
+            }
+        )
     sys.stdout.write(json.dumps(tasks_data, indent=2) + "\n")
 
 
@@ -83,24 +86,28 @@ def _output_task_list_csv(task_list: TaskLister) -> None:
     writer = csv.writer(sys.stdout)
     writer.writerow(["Name", "Description", "Start Time", "Interval"])
     for t in task_list:
-        writer.writerow([
-            t.name,
-            t.description,
-            t.start_time.isoformat() if t.start_time else "",
-            str(t.interval) if t.interval else "",
-        ])
+        writer.writerow(
+            [
+                t.name,
+                t.description,
+                t.start_time.isoformat() if t.start_time else "",
+                str(t.interval) if t.interval else "",
+            ]
+        )
 
 
 def _output_action_list_json(action_list: ActionLister) -> None:
     """Output action list in JSON format"""
     actions_data = []
     for a in action_list:
-        actions_data.append({
-            "task": a.ref_task.name,
-            "actor": a.actor,
-            "timestamp": a.timestamp.isoformat() if a.timestamp else None,
-            "action_name": a.name,
-        })
+        actions_data.append(
+            {
+                "task": a.ref_task.name,
+                "actor": a.actor,
+                "timestamp": a.timestamp.isoformat() if a.timestamp else None,
+                "action_name": a.name,
+            }
+        )
     sys.stdout.write(json.dumps(actions_data, indent=2) + "\n")
 
 
@@ -109,9 +116,11 @@ def _output_action_list_csv(action_list: ActionLister) -> None:
     writer = csv.writer(sys.stdout)
     writer.writerow(["Task", "Actor", "Timestamp", "Action Name"])
     for a in action_list:
-        writer.writerow([
-            a.ref_task.name,
-            a.actor,
-            a.timestamp.isoformat() if a.timestamp else "",
-            a.name,
-        ])
+        writer.writerow(
+            [
+                a.ref_task.name,
+                a.actor,
+                a.timestamp.isoformat() if a.timestamp else "",
+                a.name,
+            ]
+        )

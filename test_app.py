@@ -19,7 +19,6 @@ from maintenance_tracker import (
     TaskRecordResults,
 )
 
-
 logging.basicConfig(level=logging.DEBUG)
 
 
@@ -102,7 +101,9 @@ def test_register_task(task1):
     assert task1 in app.tracker.task_list
     # Verify that the task is saved by creating a new tracker instance and loading
     # from the same temporary directory. This confirms the persistence side effect.
-    new_tracker = MaintenanceTracker(load=True, save_dir=app.tracker.task_list_saver.dirname)
+    new_tracker = MaintenanceTracker(
+        load=True, save_dir=app.tracker.task_list_saver.dirname
+    )
     assert task1 in new_tracker.task_list
 
 
@@ -159,12 +160,13 @@ def test_get_all_tasks(task1, task2):
 def test_edit_task_with_name_change(task1):
     app.register_task(task1)
     task_from_tracker = app.get_task_by_name(task1.name)
+    assert task_from_tracker is not None
     app.record_run(task_from_tracker.name, timestamp=datetime.now(UTC))
     original_action = app.tracker.action_list[0]
 
     changes = {"name": "a new name", "description": "new description"}
     new_task = app.edit_task(task_from_tracker, changes)
-
+    assert new_task is not None
     assert new_task.name == "a new name"
     assert new_task.description == "new description"
     assert app.get_task_by_name(task1.name) is None
@@ -178,7 +180,9 @@ def test_edit_task_with_name_change(task1):
 
     # Verify persistence by loading from the temp directory to ensure all changes,
     # including the task name update and action reassignment, were saved.
-    new_tracker = MaintenanceTracker(load=True, save_dir=app.tracker.task_list_saver.dirname)
+    new_tracker = MaintenanceTracker(
+        load=True, save_dir=app.tracker.task_list_saver.dirname
+    )
     assert new_tracker.task_list.get_task_by_name("a new name") == new_task
     assert len(new_tracker.action_list) == 1
     assert new_tracker.action_list[0].ref_task.name == "a new name"
@@ -186,8 +190,10 @@ def test_edit_task_with_name_change(task1):
 
 def test_edit_task_fails_without_name_change(task1):
     from errors import DuplicateTaskError
+
     app.register_task(task1)
     task_from_tracker = app.get_task_by_name(task1.name)
+    assert task_from_tracker is not None
 
     changes = {"description": "new description"}
     with pytest.raises(DuplicateTaskError):
@@ -227,7 +233,9 @@ def test_get_actions_for_task_filtered(task1, action1_t1, action2_t1, action3_t1
 def test_record_run(task1):
     app.register_task(task1)
 
-    result = app.record_run(task1.name, action_name="test run", timestamp=datetime.now(UTC))
+    result = app.record_run(
+        task1.name, action_name="test run", timestamp=datetime.now(UTC)
+    )
     assert result == ActionRecordResults.SUCCESS
     assert len(app.tracker.action_list) == 1
     action = app.tracker.action_list[0]
@@ -236,13 +244,16 @@ def test_record_run(task1):
 
     # Verify persistence by loading from the temp directory and checking
     # if the new action was saved correctly.
-    new_tracker = MaintenanceTracker(load=True, save_dir=app.tracker.task_list_saver.dirname)
+    new_tracker = MaintenanceTracker(
+        load=True, save_dir=app.tracker.task_list_saver.dirname
+    )
     assert len(new_tracker.action_list) == 1
     assert new_tracker.action_list[0] == action
 
 
 def test_record_run_no_task():
     from errors import TaskNotFoundError
+
     with patch("app.tracker.save") as mock_save:
         with pytest.raises(TaskNotFoundError):
             app.record_run("non-existent task")
@@ -265,12 +276,15 @@ def test_delete_task(task1):
 
     # Verify persistence by loading from the temp directory to ensure the task
     # was actually removed from the saved data.
-    new_tracker = MaintenanceTracker(load=True, save_dir=app.tracker.task_list_saver.dirname)
+    new_tracker = MaintenanceTracker(
+        load=True, save_dir=app.tracker.task_list_saver.dirname
+    )
     assert task1 not in new_tracker.task_list
 
 
 def test_delete_task_not_found():
     from errors import TaskNotFoundError
+
     with patch("app.tracker.save") as mock_save:
         with pytest.raises(TaskNotFoundError):
             app.delete_task("non-existent task")
@@ -297,7 +311,9 @@ def test_delete_action(task1, action1_t1, action2_t1):
 
     # Verify persistence by loading from the temp directory to ensure the action
     # was actually removed from the saved data.
-    new_tracker = MaintenanceTracker(load=True, save_dir=app.tracker.task_list_saver.dirname)
+    new_tracker = MaintenanceTracker(
+        load=True, save_dir=app.tracker.task_list_saver.dirname
+    )
     assert len(new_tracker.action_list) == 1
     assert new_tracker.action_list[0] == a2
 
@@ -374,7 +390,10 @@ def test_edit_task_failure(task1):
     app.register_task(task1)
     t1 = app.get_task_by_name(task1.name)
     from errors import DanglingActionsError
-    with patch("app.tracker.delete_task", side_effect=DanglingActionsError("cannot delete")):
+
+    with patch(
+        "app.tracker.delete_task", side_effect=DanglingActionsError("cannot delete")
+    ):
         with pytest.raises(DanglingActionsError):
             app.edit_task(t1, {"name": "NewName"})
 
@@ -386,11 +405,15 @@ def test_get_actions_for_task_filtered_start_only_and_end_only(task1, action1_t1
     app.tracker.record_run(a1)
 
     # start only
-    actions_start = app.get_actions_for_task_filtered(task1.name, start_time=datetime(2023, 1, 1, tzinfo=UTC))
+    actions_start = app.get_actions_for_task_filtered(
+        task1.name, start_time=datetime(2023, 1, 1, tzinfo=UTC)
+    )
     assert len(actions_start) == 1
 
     # end only
-    actions_end = app.get_actions_for_task_filtered(task1.name, end_time=datetime(2025, 1, 1, tzinfo=UTC))
+    actions_end = app.get_actions_for_task_filtered(
+        task1.name, end_time=datetime(2025, 1, 1, tzinfo=UTC)
+    )
     assert len(actions_end) == 1
 
 
@@ -433,4 +456,3 @@ def test_get_next_runs_ignores_unknown_and_unscheduled_tasks(task1):
 
     assert app.get_next_runs(for_task="missing", at=at_time) == []
     assert [task.name for task, _ in app.get_next_runs(at=at_time)] == [task1.name]
-
