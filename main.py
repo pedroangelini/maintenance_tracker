@@ -17,7 +17,7 @@ from typing_extensions import Annotated
 from cli import *
 from config import config, APP_NAME
 from app import tracker
-from core import DEFAULT_TASK_LIST_FILE
+from repository import DEFAULT_TASK_LIST_FILE
 
 logger = logging.getLogger(__name__)
 
