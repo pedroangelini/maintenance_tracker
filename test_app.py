@@ -241,9 +241,10 @@ def test_record_run(task1):
 
 
 def test_record_run_no_task():
+    from errors import TaskNotFoundError
     with patch("app.tracker.save") as mock_save:
-        result = app.record_run("non-existent task")
-        assert result == ActionRecordResults.FAILURE
+        with pytest.raises(TaskNotFoundError):
+            app.record_run("non-existent task")
         mock_save.assert_not_called()
 
 
@@ -268,9 +269,10 @@ def test_delete_task(task1):
 
 
 def test_delete_task_not_found():
+    from errors import TaskNotFoundError
     with patch("app.tracker.save") as mock_save:
-        result = app.delete_task("non-existent task")
-        assert result == TaskRecordResults.FAILURE
+        with pytest.raises(TaskNotFoundError):
+            app.delete_task("non-existent task")
         mock_save.assert_not_called()
 
 

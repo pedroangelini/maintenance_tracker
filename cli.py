@@ -139,7 +139,13 @@ def record_run(
 ):
     """Records an action for a task."""
     ts = utils.parse_date(timestamp) if timestamp else None
-    result = app.record_run(task_name, ts, action_name, actor)
+    try:
+        result = app.record_run(task_name, ts, action_name, actor)
+    except Exception as e:
+        # Map domain exceptions to friendly CLI errors
+        rich.print(f":x: [red]{str(e)}[/red]")
+        raise typer.Exit(code=GENERIC_FAIL_CODE)
+
     if result == ActionRecordResults.SUCCESS:
         rich.print(f":heavy_check_mark: [green]Successfully recorded action for task '{task_name}'[/green]")
     else:
@@ -468,7 +474,12 @@ def delete_task(
     task_name: Annotated[str, typer.Argument(help="name of the task to delete")],
 ):
     """Deletes a task."""
-    result = app.delete_task(task_name)
+    try:
+        result = app.delete_task(task_name)
+    except Exception as e:
+        rich.print(f":x: [red]{str(e)}[/red]")
+        raise typer.Exit(code=GENERIC_FAIL_CODE)
+
     if result == TaskRecordResults.SUCCESS:
         rich.print(f":heavy_check_mark: [green]Successfully deleted task '{task_name}'[/green]")
     else:

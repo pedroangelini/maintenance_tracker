@@ -154,8 +154,11 @@ def test_delete_task_with_dangling_actions(task1, action1_t1):
     mtnt.register_task(task1)
     mtnt.record_run(action1_t1)
 
-    result = mtnt.delete_task(task1)
-    assert result == TaskRecordResults.FAILURE
+    from errors import DanglingActionsError
+    with pytest.raises(DanglingActionsError):
+        mtnt.delete_task(task1)
+
+    # ensure task still present
     assert task1 in mtnt.task_list
 
 
