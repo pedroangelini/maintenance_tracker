@@ -7,7 +7,7 @@ requires-python = ">=3.10"
 dependencies = [
     "dateparser>=1.4.1",
     "human-readable>=2.0.3",
-    "typer>=0.15.2",
+    "typer>=0.27.0",
 ]
 
 [dependency-groups]
