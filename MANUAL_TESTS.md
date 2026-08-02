@@ -42,8 +42,8 @@ shown as successfully updated.
 ## Record, list, query, and delete actions
 
 ```sh
-mtnt record run "Water plants" --timestamp "2024-01-08 09:15" "weekly watering" "Alex"
-mtnt add action "Water plants" --timestamp "2024-01-15 09:00" "second watering" "Sam"
+mtnt record run "Water plants" "Alex" --timestamp "2024-01-08 09:15" --action-name "weekly watering"
+mtnt add action "Water plants" "Sam" --timestamp "2024-01-15 09:00" --action-name "second watering"
 mtnt list actions
 mtnt list actions "Water plants"
 mtnt report actions --at 2024-01 --for "Water plants"
@@ -60,7 +60,7 @@ Also delete by a time range, then confirm the filtered list is empty:
 ```sh
 mtnt delete action "Water plants" --start-time "2024-01-15 00:00" --end-time "2024-01-15 23:59"
 mtnt list actions "Water plants"
-mtnt record run "Water plants" --timestamp "2024-01-15 09:00" "second watering" "Sam"
+mtnt record run "Water plants" "Sam" --timestamp "2024-01-15 09:00" --action-name "second watering"
 ```
 
 ## Edit, reporting, and validation

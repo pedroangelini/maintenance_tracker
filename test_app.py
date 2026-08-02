@@ -456,3 +456,55 @@ def test_get_next_runs_ignores_unknown_and_unscheduled_tasks(task1):
 
     assert app.get_next_runs(for_task="missing", at=at_time) == []
     assert [task.name for task, _ in app.get_next_runs(at=at_time)] == [task1.name]
+
+
+def test_delete_action_by_name(task1):
+    """Ensure actions can be deleted by their action name."""
+    app.register_task(task1)
+    t = app.get_task_by_name(task1.name)
+    a1 = Action(
+        ref_task=t,
+        timestamp=datetime(2024, 1, 1, 9, 0, tzinfo=UTC),
+        name="weekly watering",
+        actor="Alex",
+    )
+    a2 = Action(
+        ref_task=t,
+        timestamp=datetime(2024, 1, 15, 9, 0, tzinfo=UTC),
+        name="second watering",
+        actor="Sam",
+    )
+    app.tracker.record_run(a1)
+    app.tracker.record_run(a2)
+
+    # Delete by action name
+    deleted = app.delete_action(task1.name, action_name="weekly watering")
+    assert deleted == 1
+    assert len(app.tracker.action_list) == 1
+    assert app.tracker.action_list[0].name == "second watering"
+
+
+def test_delete_action_when_actor_and_actionname_swapped(task1):
+    """Simulate the positional swap (actor vs action name) and validate delete-by-name behavior."""
+    app.register_task(task1)
+    t = app.get_task_by_name(task1.name)
+
+    # Simulate a user accidentally swapping actor and action name when calling the CLI.
+    # Record an action where the name is actually the actor and vice versa.
+    swapped = Action(
+        ref_task=t,
+        timestamp=datetime(2024, 1, 8, 9, 15, tzinfo=UTC),
+        name="Alex",
+        actor="weekly watering",
+    )
+    app.tracker.record_run(swapped)
+
+    # Attempting to delete by the intended action name should not match the swapped entry.
+    deleted = app.delete_action(task1.name, action_name="weekly watering")
+    assert deleted == 0
+    assert len(app.tracker.action_list) == 1
+
+    # Deleting by the actual recorded action name should succeed.
+    deleted2 = app.delete_action(task1.name, action_name="Alex")
+    assert deleted2 == 1
+    assert len(app.tracker.action_list) == 0
