@@ -208,7 +208,7 @@ def test_list_rejects_unknown_output_format(mock_app, tmp_config_dir):
     result = invoke_app(["list", "tasks", "--output", "yaml"], tmp_config_dir)
 
     assert result.exit_code == 2
-    assert "Invalid value" in result.stdout
+    assert "Invalid value" in result.stderr
 
 
 def test_no_args_shows_help_when_database_does_not_exist(mock_app, tmp_config_dir):
