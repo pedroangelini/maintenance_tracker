@@ -1,4 +1,5 @@
 from datetime import UTC, date, datetime, timedelta
+from dateutil.relativedelta import relativedelta
 from time import sleep
 
 import pytest
@@ -13,6 +14,7 @@ from utils import (
     human_interval_str,
     parse_date,
     parse_interval,
+    parse_partial_timestamp,
 )
 
 
@@ -54,7 +56,7 @@ def test__round_datetime(
         (
             "1 month",
             _round_datetime(
-                datetime.now().replace(month=date.today().month + 1)
+                datetime.now() + relativedelta(months=1)
             ).astimezone(),
         ),
     ],
@@ -166,31 +168,51 @@ def test_parse_interval_raises(
 
 
 @pytest.mark.parametrize(
-    "input,expected",
+    "delta,expected",
     [
-        (
-            None,
-            "no date provided",
-        ),
-        (
-            datetime(2025, 3, 23, 19, 14, 00).astimezone(),
-            "now",
-        ),
-        (
-            # datetime.today().astimezone() - timedelta(days=1),
-            datetime(2025, 3, 23, 19, 14, 0).astimezone() - timedelta(days=1),
-            "a day ago",
-        ),
-        (
-            datetime(2025, 3, 23, 19, 14, 0).astimezone() + timedelta(days=1),
-            "a day from now",
-        ),
-        (
-            datetime(2025, 3, 23, 19, 14, 0).astimezone() + timedelta(hours=5),
-            "5 hours from now",
-        ),
+        (None, "no date provided"),
+        (timedelta(seconds=0), "now"),
+        (timedelta(days=-1), "a day ago"),
+        (timedelta(days=1), "a day from now"),
+        (timedelta(hours=5), "5 hours from now"),
     ],
 )
-def test_human_date_str(input, expected):
-    with freeze_time("2025-03-23 19:14:00"):
-        assert human_date_str(input) == expected
+def test_human_date_str(delta, expected):
+    frozen_time = datetime(2025, 3, 23, 19, 14, 00)
+    with freeze_time(frozen_time):
+        if delta is None:
+            test_input = None
+        else:
+            test_input = datetime.now() + delta
+        assert human_date_str(test_input, when_now=frozen_time) == expected
+
+
+def test_parse_partial_timestamp():
+    from utils import parse_partial_timestamp, UTC
+    # Year
+    start, end = parse_partial_timestamp("2024")
+    assert start == datetime(2024, 1, 1, 0, 0, 0, tzinfo=UTC)
+    assert end == datetime(2024, 12, 31, 23, 59, 59, 999999, tzinfo=UTC)
+
+    # Month
+    start, end = parse_partial_timestamp("2024-05")
+    assert start == datetime(2024, 5, 1, 0, 0, 0, tzinfo=UTC)
+    assert end == datetime(2024, 5, 31, 23, 59, 59, 999999, tzinfo=UTC)
+
+    # Day
+    start, end = parse_partial_timestamp("2024-05-15")
+    assert start == datetime(2024, 5, 15, 0, 0, 0, tzinfo=UTC)
+    assert end == datetime(2024, 5, 15, 23, 59, 59, 999999, tzinfo=UTC)
+
+    # Hour
+    start, end = parse_partial_timestamp("2024-05-15 14")
+    assert start == datetime(2024, 5, 15, 14, 0, 0, tzinfo=UTC)
+    assert end == datetime(2024, 5, 15, 14, 59, 59, 999999, tzinfo=UTC)
+
+
+@pytest.mark.parametrize("value", ["2024-05-15 14:30", "2024-05-15T14:30"])
+def test_parse_partial_timestamp_minute_precision(value):
+    start, end = parse_partial_timestamp(value)
+
+    assert start == datetime(2024, 5, 15, 14, 30, 0, tzinfo=UTC)
+    assert end == datetime(2024, 5, 15, 14, 30, 59, 999999, tzinfo=UTC)

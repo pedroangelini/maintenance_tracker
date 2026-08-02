@@ -69,35 +69,39 @@ _using Typer library_
 
 ```
 mtnt [--verbose] [--config_dir <non-default-dir>]
- |-- ⚒️ add
+ |-- ✔️ add
  |    |-- ✔️ task
- |    |-- ❌ action           # (same as mtnt record)
- |-- ❌ record [run]
- |-- ⚒️ list
+ |    |-- ✔️ action           # (same as mtnt record)
+ |-- ✔️ record [run]
+ |-- ✔️ list
  |    |-- ✔️ tasks
- |    |-- ❌ actions
- |-- ⚒️ get
+ |    |-- ✔️ actions
+ |-- ✔️ get
  |    |-- ✔️ tasks
  |    |-- ✔️ task
- |    |-- ❌ actions
- |    |-- ❌ action
- |-- ⚒️ edit
+ |    |-- ✔️ actions
+ |    |-- ✔️ action
+ |-- ✔️ edit
  |    |-- ✔️ task
- |    |-- action
- |-- ❌ delete
- |    |-- task
- |    |-- action
- |-- ❌ report
-      |-- overdue
-      |-- next [run]
-      |-- tasks
-      |-- actions
+ |    |-- ✔️ action
+ |-- ✔️ delete
+ |    |-- ✔️ task
+ |    |-- ✔️ action
+ |-- ✔️ report
+      |-- ✔️ overdue
+      |-- ✔️ next [run]
+      |-- ✔️ tasks
+      |-- ✔️ actions
 ```
 
 ### Global Options
 
 - `--verbose` - show info logs
 - `--config_dir` - sets a different configuration directory
+
+### Default dashboard
+
+Running `mtnt` without a subcommand checks the current configuration's data directory. If it already contains a tracker database, it prints a bold **overdue tasks** heading followed by the same task list as `mtnt list tasks --overdue`, then a bold **next expected tasks** heading followed by the same report as `mtnt report next`. On first use, when no database exists yet, it continues to show the command help.
 
 ### Add a task to the list:
 
@@ -113,33 +117,37 @@ mtnt [--verbose] [--config_dir <non-default-dir>]
 
 ### Record the run of a task
 
-`mtnt record [run] <task_name> [now|<action_timestamp>] <action_name> <actor>`
+`mtnt record [run] <task_name> <actor> [--timestamp|<action_timestamp>] [<action_name>]`
 
 or
 
-`mtnt add action <task_name> [now|<action_timestamp>] <action_name> <actor>`
+`mtnt add action <task_name> <actor> [--timestamp|<action_timestamp>] [<action_name>]`
 
-| Argument           | Description                           |
-| ------------------ | ------------------------------------- |
-| `run`              | optional, doesn't do anything         |
-| `task_name`        | The name of the task                  |
-| `action_timestamp` | The time the action was executed      |
-| `action_name`      | A name for the action (optional)      |
-| `actor`            | name of the person who did the action |
+| Argument | Description |
+|---|---|
+| `run` | optional, doesn't do anything |
+| `task_name` | The name of the task |
+| `actor` | name of the person who did the action |
+| `action_timestamp` | The time the action was executed (optional, defaults to now) |
+| `action_name` | A name for the action (optional) |
 
 ### List tasks
 
-`mtnt list tasks`
+`mtnt list tasks [--overdue] [--output table|json|csv]`
 
-No arguments
+| Argument | Description |
+|---|---|
+| `--overdue` | list only overdue tasks |
+| `--output`, `-o` | output format; defaults to `table`, or use `json` or `csv` for standard output |
 
 ### List actions optionally for a single task
 
-`mtnt list actions [<task_name>]`
+`mtnt list actions [<task_name>] [--output table|json|csv]`
 
 | Argument    | Description          |
 | ----------- | -------------------- |
 | `task_name` | The name of the task |
+| `--output`, `-o` | output format; defaults to `table`, or use `json` or `csv` for standard output |
 
 ### See details of a task
 
@@ -205,15 +213,16 @@ ie: task, timestamp, name, actor
 
 ### Delete actions
 
-Deletes one action at a time. If the name or timestamp can be associated to multiple actions, asks the user which one before proceding.
+Deletes actions based on their names or timestamps. If name is given, it is used as a priority, and the start_time and end_time arguments are ignored. In only one of the start/end times are provided, the other one is consired to be "now".
 
-`mtnt delete action <task_name> [<action_timestamp>|<action_name>]`
+`mtnt delete action <task_name> [--action-name <action_name>] [--start-time <start_time>] [--end-time <end_time>]`
 
-| Argument           | Description                                                                |
-| ------------------ | -------------------------------------------------------------------------- |
-| `task_name`        | The name of the task of the action you want to delete                      |
-| <action_timestamp> | the timestamp of the action you want to delete. Can be a partial timestamp |
-| <action_name>      | the name of the action you want to delete                                  |
+| Argument | Description |
+|---|---|
+| `task_name` | The name of the task of the action you want to delete |
+| `--action-name <action_name>` | the name of the action you want to delete |
+| `--start-time <start_time>` | start time of the actions to delete |
+| `--end-time <end_time>` | end time of the actions to delete |
 
 ### See overdue tasks
 

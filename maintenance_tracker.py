@@ -93,28 +93,54 @@ class MaintenanceTracker:
         return ret_code
 
     def get_actions_for_task(
-        self, target_task: Task, ordered: Ordering | bool = False
+        self, 
+        target_task: Task, 
+        start_time: datetime | None = None, 
+        end_time: datetime | None = None,
+        ordered: Ordering | bool = False
     ) -> ActionLister:
-        """gets a list of actions for a given task (based on the task name)
-
-        Args:
-            target_task (task): the task you want to list actions for
-            ordered (Ordering | bool, optional): should the returned action list be ordered based on the action date time? values: Ordering.ASC, Ordering.DESC or bool True is the same as Ordering.ASC. Defaults to False.
-
-        Returns:
-            action_lister: a list of actions for the desired task
-        """
+        """gets a list of actions for a given task within a time range"""
         result_list = [
             action
             for action in self.action_list
             if action.ref_task.name == target_task.name
         ]
+        
+        # Filter by time range if provided
+        if start_time or end_time:
+            if start_time is None:
+                start_time = datetime.min.replace(tzinfo=UTC)
+            if end_time is None:
+                end_time = datetime.now(UTC)
+                
+            result_list = [
+                action
+                for action in result_list
+                if start_time <= action.timestamp <= end_time
+            ]
+        
+        # Order if requested
         if ordered:
             result_list = sorted(
                 result_list,
                 key=lambda a: a.timestamp,
                 reverse=(ordered == Ordering.DESC),
             )
+
+        return ActionLister(result_list)
+
+    def get_actions_by_time(
+        self, start_time: datetime, end_time: datetime | None = None
+    ) -> ActionLister:
+        """gets a list of actions within a given time range"""
+        if end_time is None:
+            end_time = datetime.now(UTC)
+
+        result_list = [
+            action
+            for action in self.action_list
+            if start_time <= action.timestamp <= end_time
+        ]
 
         return ActionLister(result_list)
 
@@ -182,7 +208,7 @@ class MaintenanceTracker:
         if when is None:
             when = datetime.now(UTC)
 
-        last_run = self.get_latest_task_run(task)
+        last_run = self.get_latest_task_run(task, when=when)
 
         if last_run is None:
             return None

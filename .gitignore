@@ -7,3 +7,5 @@ Pipfile.lock
 .coverage
 coverage.xml
 /htmlcov
+cov.xml
+.aider*

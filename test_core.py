@@ -72,6 +72,15 @@ def action2_t1(task1: Task):
         "me",
     )
 
+@pytest.fixture(scope="function")
+def action3_t1(task1: Task):
+    return Action(
+        datetime(2024, 1, 3, 0, 0, tzinfo=UTC),
+        task1,
+        "ran task1 on day 3",
+        "me",
+    )
+
 
 def test_task_equality(task1: Task, task2: Task):
     task1_copy = task1.copy()
@@ -200,6 +209,25 @@ def test_task_lister_collision(task1: Task):
         lst = lst + [t2]
 
 
+def test_task_rejects_empty_name_and_lister_rejects_none_name():
+    with pytest.raises(ValueError, match="name cannot be None"):
+        Task(name=None)
+
+    with pytest.raises(ValueError, match="name passed as None"):
+        TaskLister()._check_task_name_available(None)
+
+
+def test_one_off_task_programmed_times():
+    start = datetime(2024, 1, 2, 10, 0, tzinfo=UTC)
+    task = Task("one-off", start_time=start, interval=timedelta(0))
+
+    assert task.get_programmed_time(1, when=datetime(2024, 1, 1, tzinfo=UTC)) == start
+    assert task.get_programmed_time(-1, when=datetime(2024, 1, 3, tzinfo=UTC)) == start
+    assert task.get_all_programmed_times(
+        timedelta(days=2), when=datetime(2024, 1, 1, tzinfo=UTC)
+    ) == [start]
+
+
 @pytest.mark.parametrize(
     "task,when,n,expected_prog_time",
     [
@@ -291,3 +319,170 @@ def test_get_next_tasks_due_period__before_start(task1, task2, task3, task4):
 
     ret = tsk_lst.get_next_tasks_due_period(timedelta(hours=1), now_tbu)
     assert ret == []
+
+def test_action_list_inequality_size_diff(task1: Task, action1_t1: Action, action2_t1: Action):
+    action_lst1 = ActionLister([action1_t1, action2_t1])
+    action_lst2 = ActionLister([action1_t1])
+
+    assert action_lst1 != action_lst2, "ActionLister __eq__ not detecting inequality when 2 lists have different sizes"
+
+
+def test_action_list_equality_different_content(action1_t1: Action, action2_t1: Action, action3_t1: Action):
+    # Test for inequality with two lists of the same length but different content
+    action_lst_a = ActionLister([action1_t1, action2_t1]) # 2024-01-01, 2024-01-02
+    action_lst_b = ActionLister([action1_t1, action3_t1]) # 2024-01-01, 2024-01-03
+
+    assert action_lst_a != action_lst_b, "ActionLister should report lists with different contents as not equal."
+
+
+def test_action_list_equality_order_independent(action1_t1: Action, action2_t1: Action):
+    # Test for equality with the same actions in a different order
+    action_lst_c = ActionLister([action1_t1, action2_t1])
+    action_lst_d = ActionLister([action2_t1, action1_t1])
+    assert action_lst_c == action_lst_d, "ActionLister equality should be order-independent."
+
+
+def test_task_replace_single_field(task1: Task):
+    updated_task = task1.replace(changes={"description": "new description"})
+    assert updated_task.description == "new description"
+    assert updated_task.name == task1.name
+    assert updated_task.start_time == task1.start_time
+    assert updated_task.interval == task1.interval
+    assert task1.description == "a description for my task1", "Original task should be immutable"
+
+
+def test_task_replace_multiple_fields(task1: Task):
+    new_start_time = datetime(2025, 1, 1, tzinfo=UTC)
+    new_interval = timedelta(hours=2)
+    updated_task = task1.replace(changes={
+        "description": "another description",
+        "start_time": new_start_time,
+        "interval": new_interval
+    })
+    assert updated_task.description == "another description"
+    assert updated_task.start_time == new_start_time
+    assert updated_task.interval == new_interval
+    assert updated_task.name == task1.name
+    assert task1.description == "a description for my task1", "Original task should be immutable"
+
+
+def test_task_replace_none_values(task1: Task):
+    updated_task = task1.replace(changes={"start_time": None, "interval": None})
+    assert updated_task.start_time is None
+    assert updated_task.interval is None
+    assert updated_task.name == task1.name
+    assert task1.start_time is not None, "Original task should be immutable"
+
+
+def test_action_replace_single_field(action1_t1: Action):
+    new_name = "new action name"
+    updated_action = action1_t1.replace(changes={"name": new_name})
+    assert updated_action.name == new_name
+    assert updated_action.description == action1_t1.description
+    assert updated_action.timestamp == action1_t1.timestamp
+    assert updated_action.ref_task == action1_t1.ref_task
+    assert action1_t1.name == "ran task1 on new year day", "Original action should be immutable"
+
+
+def test_action_replace_multiple_fields(action1_t1: Action, task2: Task):
+    new_timestamp = datetime(2024, 1, 5, tzinfo=UTC)
+    new_description = "a different description"
+    updated_action = action1_t1.replace(changes={
+        "timestamp": new_timestamp,
+        "description": new_description,
+        "ref_task": task2
+    })
+    assert updated_action.timestamp == new_timestamp
+    assert updated_action.description == new_description
+    assert updated_action.ref_task == task2
+    assert updated_action.name == action1_t1.name
+    assert action1_t1.timestamp != new_timestamp, "Original action should be immutable"
+
+
+@pytest.fixture
+def task_no_interval(task1: Task):
+    """A task with a start time but no interval."""
+    return task1.replace(changes={"interval": None})
+
+
+def test_task_str(task1):
+    string = str(task1)
+    assert "Task: my first task" in string
+    assert "a description for my task1" in string
+    assert f"starting on: {utils.human_date_str(task1.start_time)}" in string
+    assert f"interval: {utils.human_interval_str(task1.interval)}" in string
+
+def test_task_get_programmed_time_negative_n_before_start(task1):
+    when = task1.start_time + timedelta(minutes=30)
+    assert task1.get_programmed_time(n=-2, when=when) is None
+
+def test_task_get_all_programmed_times_no_interval(task_no_interval):
+    when = task_no_interval.start_time - timedelta(days=1)
+    period = timedelta(days=2)
+    times = task_no_interval.get_all_programmed_times(period, when)
+    assert times == [task_no_interval.start_time]
+
+    when_after = task_no_interval.start_time + timedelta(days=1)
+    times_after = task_no_interval.get_all_programmed_times(period, when_after)
+    assert times_after == []
+
+    # Also test case where it does not repeat and start_time is not in period
+    when = task_no_interval.start_time - timedelta(days=2)
+    period = timedelta(days=1)
+    times = task_no_interval.get_all_programmed_times(period, when)
+    assert times == []
+
+
+def test_task_get_all_programmed_times_break(task1):
+    # This test is to cover the break condition in get_all_programmed_times
+    when = task1.start_time
+    period = timedelta(hours=5)
+    times = task1.get_all_programmed_times(period, when)
+    assert len(times) == 5
+
+def test_persister_remove_nonexistent_file(tmp_path):
+    persister = Persister(None)
+    persister.save_path = tmp_path / "non_existent_file.json"
+    persister._remove_file() # Should not raise FileNotFoundError
+
+def test_json_decoder_unknown_type():
+    import json
+    json_str = '{"__type__": "UnknownType", "foo": "bar"}'
+    decoder = MtnTrackerJSONDecoder()
+    decoded = decoder.decode(json_str)
+    assert decoded == {"__type__": "UnknownType", "foo": "bar"}
+
+def test_json_decoder_no_type():
+    import json
+    json_str = '{"foo": "bar"}'
+    decoder = MtnTrackerJSONDecoder()
+    decoded = decoder.decode(json_str)
+    assert decoded == {"foo": "bar"}
+
+def test_persister_constructors(tmp_path: Path):
+    task_list = TaskLister([])
+    action_list = ActionLister([])
+
+    # Test TaskListPersister with specified dirname
+    tlp_dirname = TaskListPersister(task_list, dirname=str(tmp_path))
+    assert tlp_dirname.dirname == str(tmp_path)
+    assert tlp_dirname.filename == DEFAULT_TASK_LIST_FILE
+    assert tlp_dirname.save_path == tmp_path / DEFAULT_TASK_LIST_FILE
+
+    # Test TaskListPersister with specified filename
+    tlp_filename = TaskListPersister(task_list, filename="custom_tasks.json")
+    assert tlp_filename.filename == "custom_tasks.json"
+
+    # Test ActionListPersister with specified dirname
+    alp_dirname = ActionListPersister(action_list, dirname=str(tmp_path))
+    assert alp_dirname.dirname == str(tmp_path)
+    assert alp_dirname.filename == DEFAULT_ACTION_LIST_FILE
+    assert alp_dirname.save_path == tmp_path / DEFAULT_ACTION_LIST_FILE
+
+    # Test ActionListPersister with specified filename
+    alp_filename = ActionListPersister(action_list, filename="custom_actions.json")
+    assert alp_filename.filename == "custom_actions.json"
+
+def test_task_lister_get_task_by_name_not_found(task1):
+    lister = TaskLister([task1])
+    assert lister.get_task_by_name("non-existent task") is None
