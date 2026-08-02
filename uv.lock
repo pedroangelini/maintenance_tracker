@@ -208,11 +208,11 @@ wheels = [
 
 [[package]]
 name = "human-readable"
-version = "2.0.0"
+version = "2.0.3"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/29/30/8b9f178a56235e7107f4aaff95b289cb74305fe56422e54635f647b19502/human_readable-2.0.0.tar.gz", hash = "sha256:56eb9445e560ccfa0695908ae2ec8b0081b86d49eba1a0833bc0ae0f44d6c4e9", size = 87962, upload-time = "2025-01-18T16:33:14.23Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/6c/14/d066bb51de047dd387f865ac936edd6b7859b96423a125f5bbb0673a9ac4/human_readable-2.0.3.tar.gz", hash = "sha256:3f811fd56ee8669572cb2ec9f852b53ee0700748e53c3695731ffd9ab4fc524b", size = 113593, upload-time = "2026-04-24T07:34:25.871Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/96/cf/867392774be839c34766131a327c895e8d149abce287609ae24cb2ac0f6a/human_readable-2.0.0-py3-none-any.whl", hash = "sha256:a02daeb08fb1a562320e90032787b31f0a14c32e719fab1417f67fb0ad7d1157", size = 120151, upload-time = "2025-01-18T16:33:12.43Z" },
+    { url = "https://files.pythonhosted.org/packages/ba/1a/2b2398089ba316454225d90e741774e631679c1b883935e867e8da0d9a40/human_readable-2.0.3-py3-none-any.whl", hash = "sha256:ab1422ab5103a8e5a9b55aabb95d407e0bfce54c167218a29203914e56f8df53", size = 120150, upload-time = "2026-04-24T07:34:24.049Z" },
 ]
 
 [[package]]
@@ -246,7 +246,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "dateparser", specifier = ">=1.4.1" },
-    { name = "human-readable", specifier = ">=2.0.0" },
+    { name = "human-readable", specifier = ">=2.0.3" },
     { name = "typer", specifier = ">=0.15.2" },
 ]
 

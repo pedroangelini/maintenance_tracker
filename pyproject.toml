@@ -6,7 +6,7 @@ readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
     "dateparser>=1.4.1",
-    "human-readable>=2.0.0",
+    "human-readable>=2.0.3",
     "typer>=0.15.2",
 ]
 
