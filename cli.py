@@ -69,7 +69,7 @@ def add_task(
     interval: Annotated[str, typer.Argument()] = "",
     description: Annotated[str, typer.Argument()] = "",
     interactive: Annotated[
-        bool, typer.Option("-i", help="asks for each argument in turn")
+        bool, typer.Option("-i", "--interactive",help="asks for each argument in turn")
     ] = False,
 ):
     """Adds a task to the tracker"""
