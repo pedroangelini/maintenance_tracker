@@ -1,0 +1,63 @@
+Refactor branch squash proposal
+
+Repository: pedroangelini/maintenance_tracker
+Branch: refactor/move-business-logic
+Merge-base (against main): 59d050e45137d6ba8358c7e5385bb025a6b441f6
+
+Backups created:
+- backup/refactor/move-business-logic-pre-squash
+- backup/refactor/move-business-logic-pre-squash-2-1785617023
+
+Goal: produce one commit per refactor step (1..6) plus 1 commit for pyright/format fixes.
+
+Grouping (oldest → newest commit order inside each group):
+
+Step 1 — Move business logic → MaintenanceTracker (pick first, squash the rest into it):
+- 5cf14bd  Move business logic into MaintenanceTracker (get_tasks_by_time, get_actions_for_task_filtered, edit_task, edit_action); app.py delegates and remains responsible for persistence.
+- f83d109  Add tests for edit_action edge cases: no match, multiple matches, new_task not found; import fixtures.
+- dfacede  Add tests for DI with in-memory repos and for edit_task/edit_action behavior to improve coverage.
+- 3c45e88  Add tests to exercise additional branches: init with provided repos+load, save() writes files, edit_action except (parse_date failure) path.
+- 1f79b2b  Rename/refactor integration tests into test_integration.py; add tests to cover persister load, get_actions_for_task end-only, edit_action timestamp/task change, and failure branch for higher coverage.
+- 3751bf6  Import fixture task1 from test_core for branch coverage test.
+- e47f19e  Add tests to cover start-only filtering, multiple edit updates, and delete_task dangling-actions path to increase coverage.
+
+Step 2 — Extract persistence → repository.py (pick first, squash rest):
+- c913897  Extract persisters and JSON codec to repository.py; remove persisters from core.py; maintenance tracker imports persisters from repository; update tests to use repository persisters.
+- 1636195  Move persistence constants, JSON codec and persisters into repository.py; adapt core/tests/main to import from repository; MaintenanceTracker imports persisters from repository.
+- c5de556  Add repository wrappers (FileTaskRepository/FileActionRepository) and support DI in MaintenanceTracker (task_repo/action_repo); preserve backward-compatible attributes.
+- 8f1c261  Import FileTaskRepository/FileActionRepository into maintenance_tracker for DI defaults.
+- 533b42d  docs(refactor): update refactor_arc.md progress and manual tests
+
+Step 3 — DI for MaintenanceTracker (single commit):
+- f159695  refactor(tracker): use repository interfaces for task/action access and mutations
+
+Step 4 — Presentation → presenters.py (pick first, squash rest):
+- 7cea9cd  refactor(cli): extract presentation helpers to presenters.py and import from cli
+- a86d065  test(cli): move presenter helper tests to test_presenters; restore cli_mod import for remaining CLI tests
+- 25eaa32  test(presenters): add tests for presenters module; move helper tests out of test_cli
+- 6c2fa2f  fix: use direct rich Table/Console imports in presenters and cli
+- dbcc798  test: reorganize tests and update coverage-oriented tests (add test_repository.py, etc.)
+
+Step 5 — Standardize exceptions/errors (pick first, squash rest):
+- 4a9cb29  feat(errors): add domain exceptions and use them in MaintenanceTracker
+- f1b6287  feat(app): raise TaskNotFoundError for missing tasks in record_run and delete_task; preserve enums for success paths
+- 346ef54  feat(errors): wire domain exceptions into app and CLI; update tests to expect exceptions for missing/dangling tasks
+- 5d4878d  test(errors): update tests to expect new domain exceptions (DuplicateTaskError, DanglingActionsError)
+- 61f2c22  test: fix indentation and expect DanglingActionsError when tracker.delete_task raises
+- 9897b3b  Fix assertion for delete_task dangling actions to compare against TaskRecordResults.FAILURE.
+
+Step 6 — Repository interfaces & docs (pick first, squash rest):
+- 57289ca  refactor(repository): add ABC typing, normalize returns to Lister types, raise DuplicateTaskError on add conflict; add tests for FileTaskRepository lister returns
+- 1d443d4  refactor(repository): document interfaces and return Lister types consistently from action queries
+
+Fix/format commit (final):
+- 3b933f3  fix: address pyright diagnostics, typing, and test narrowings
+
+Notes & manual rebase guidance:
+- Run from the merge-base: git rebase -i 59d050e45137d6ba8358c7e5385bb025a6b441f6
+- For each Step: keep 'pick' on the first commit in the group, change the rest to 's' (squash) so they collapse into one commit.
+- Edit resulting commit messages to reflect "refactor(step N/6): <short description>" and include the Co-authored-by trailer if desired.
+- Tests and docs commits were intentionally grouped into the nearest step. If some test files should not be included, remove them before squashing or resolve conflicts during rebase.
+- If conflicts occur, resolve them locally, then git rebase --continue. Backup branches are available if you need a restore.
+
+If you want, I can also write a prepared todo file for the interactive rebase or retry an automated attempt with careful conflict rules.
