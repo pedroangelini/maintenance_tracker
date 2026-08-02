@@ -8,6 +8,8 @@ from enum import Enum
 from typing import Optional
 
 import rich
+from rich.table import Table
+from rich.console import Console
 import typer
 from typing_extensions import Annotated
 
@@ -39,111 +41,15 @@ edit_app = typer.Typer(no_args_is_help=True, help="edits a Task or Action")
 delete_app = typer.Typer(no_args_is_help=True, help="deletes a Task or Action")
 report_app = typer.Typer(no_args_is_help=True, help="creates reports")
 
-########################################
-# Helper functions
-########################################
-
-
-def _rich_task(t: Task) -> str:
-    ret_str = f"Task: [bold]{t.name}[/bold]\n"
-    if t.description:
-        ret_str += f"[italic]{t.description}[/italic]\n"
-    ret_str += f"starting on: {utils.human_date_str(t.start_time)}\n"
-    ret_str += f"interval:    {utils.human_interval_str(t.interval)}\n"
-    return ret_str
-
-
-def _print_task_list_table(task_list: TaskLister, title: str = "Task List") -> None:
-    table = rich.table.Table(title=title)
-
-    table.add_column("Name", justify="left", no_wrap=True)
-    table.add_column("Description")
-    table.add_column("Start Time", justify="right", style="green")
-    table.add_column("Interval", justify="right", style="green")
-
-    for t in task_list:
-        table.add_row(
-            t.name,
-            t.description,
-            utils.human_date_str(t.start_time),
-            utils.human_interval_str(t.interval),
-        )
-
-    console = rich.console.Console()
-    console.print(table)
-
-
-def _print_action_list_table(action_list: ActionLister) -> None:
-    table = rich.table.Table(title="Action List")
-
-    table.add_column("Task", justify="left", no_wrap=True)
-    table.add_column("Actor", justify="left", style="blue")
-    table.add_column("Timestamp", justify="right", style="green")
-    table.add_column("Action Name")
-
-    for a in action_list:
-        table.add_row(
-            a.ref_task.name,
-            a.actor,
-            utils.human_date_str(a.timestamp),
-            a.name,
-        )
-
-    console = rich.console.Console()
-    console.print(table)
-
-
-def _output_task_list_json(task_list: TaskLister) -> None:
-    """Output task list in JSON format"""
-    tasks_data = []
-    for t in task_list:
-        tasks_data.append({
-            "name": t.name,
-            "description": t.description,
-            "start_time": t.start_time.isoformat() if t.start_time else None,
-            "interval": str(t.interval) if t.interval else None,
-        })
-    sys.stdout.write(json.dumps(tasks_data, indent=2) + "\n")
-
-
-def _output_task_list_csv(task_list: TaskLister) -> None:
-    """Output task list in CSV format"""
-    writer = csv.writer(sys.stdout)
-    writer.writerow(["Name", "Description", "Start Time", "Interval"])
-    for t in task_list:
-        writer.writerow([
-            t.name,
-            t.description,
-            t.start_time.isoformat() if t.start_time else "",
-            str(t.interval) if t.interval else "",
-        ])
-
-
-def _output_action_list_json(action_list: ActionLister) -> None:
-    """Output action list in JSON format"""
-    actions_data = []
-    for a in action_list:
-        actions_data.append({
-            "task": a.ref_task.name,
-            "actor": a.actor,
-            "timestamp": a.timestamp.isoformat() if a.timestamp else None,
-            "action_name": a.name,
-        })
-    sys.stdout.write(json.dumps(actions_data, indent=2) + "\n")
-
-
-def _output_action_list_csv(action_list: ActionLister) -> None:
-    """Output action list in CSV format"""
-    writer = csv.writer(sys.stdout)
-    writer.writerow(["Task", "Actor", "Timestamp", "Action Name"])
-    for a in action_list:
-        writer.writerow([
-            a.ref_task.name,
-            a.actor,
-            a.timestamp.isoformat() if a.timestamp else "",
-            a.name,
-        ])
-
+from presenters import (
+    _rich_task,
+    _print_task_list_table,
+    _print_action_list_table,
+    _output_task_list_json,
+    _output_task_list_csv,
+    _output_action_list_json,
+    _output_action_list_csv,
+)
 
 ########################################
 # add app
@@ -199,7 +105,9 @@ def add_task(
 
 @add_app.command("action")
 def add_action(
-    task_name: Annotated[str, typer.Argument(help="name of the task to record an action for")],
+    task_name: Annotated[
+        str, typer.Argument(help="name of the task to record an action for")
+    ],
     actor: Annotated[
         Optional[str], typer.Argument(help="name of the person who did the action")
     ] = "",
@@ -221,7 +129,9 @@ def add_action(
 
 @record_app.command("run")
 def record_run(
-    task_name: Annotated[str, typer.Argument(help="name of the task to record an action for")],
+    task_name: Annotated[
+        str, typer.Argument(help="name of the task to record an action for")
+    ],
     actor: Annotated[
         Optional[str], typer.Argument(help="name of the person who did the action")
     ] = "",
@@ -234,13 +144,23 @@ def record_run(
 ):
     """Records an action for a task."""
     ts = utils.parse_date(timestamp) if timestamp else None
-    result = app.record_run(task_name, ts, action_name, actor)
+    # ensure strings are plain str (typer may provide Optional[str])
+    action_name = action_name or ""
+    actor = actor or ""
+    try:
+        result = app.record_run(task_name, ts, action_name, actor)
+    except Exception as e:
+        # Map domain exceptions to friendly CLI errors
+        rich.print(f":x: [red]{str(e)}[/red]")
+        raise typer.Exit(code=GENERIC_FAIL_CODE)
+
     if result == ActionRecordResults.SUCCESS:
-        rich.print(f":heavy_check_mark: [green]Successfully recorded action for task '{task_name}'[/green]")
+        rich.print(
+            f":heavy_check_mark: [green]Successfully recorded action for task '{task_name}'[/green]"
+        )
     else:
         rich.print(f":x: [red]Something went wrong[/red]")
         raise typer.Exit(code=GENERIC_FAIL_CODE)
-
 
 
 ########################################
@@ -318,7 +238,7 @@ def get_tasks(
         start = utils.parse_date(start_time) if start_time else utils.parse_date("now")
         end = utils.parse_date(end_time) if end_time else utils.parse_date("now")
         task_list = app.get_tasks_by_time(start, end)
-    
+
     if len(task_list) > 0:
         rich.print(f"found {len(task_list)} tasks")
         for t in task_list:
@@ -333,7 +253,11 @@ def get_tasks(
 )
 def get_task(name: Annotated[str, typer.Argument()]):
     """get tasks by name"""
-    t = _rich_task(app.get_task_by_name(name))
+    task = app.get_task_by_name(name)
+    if task is None:
+        rich.print(f":x: [red]Task '{name}' not found[/red]")
+        raise typer.Exit(code=GENERIC_FAIL_CODE)
+    t = _rich_task(task)
     rich.print(t)
 
 
@@ -366,27 +290,35 @@ def get_action(
     if action_ref is None:
         rich.print(":x: [red]Must provide an action timestamp or name[/red]")
         raise typer.Exit(code=GENERIC_FAIL_CODE)
-    
+
     # Try parsing as timestamp first
     try:
         timestamp = utils.parse_date(action_ref)
         action = app.get_action(task_name, timestamp)
         if action:
-            rich.print(f"Actor: {action.actor}\nTimestamp: {utils.human_date_str(action.timestamp)}\nAction Name: {action.name}\nTask: {action.ref_task.name}")
+            rich.print(
+                f"Actor: {action.actor}\nTimestamp: {utils.human_date_str(action.timestamp)}\nAction Name: {action.name}\nTask: {action.ref_task.name}"
+            )
         else:
             rich.print(f":x: [red]Action not found[/red]")
             raise typer.Exit(code=GENERIC_FAIL_CODE)
     except Exception:
         # If timestamp parsing fails, try as action name
-        action_list = app.get_actions_for_task_filtered(task_name, action_name=action_ref)
+        action_list = app.get_actions_for_task_filtered(
+            task_name, action_name=action_ref
+        )
         if len(action_list) == 0:
             rich.print(f":x: [red]No action found with name '{action_ref}'[/red]")
             raise typer.Exit(code=GENERIC_FAIL_CODE)
         elif len(action_list) == 1:
             action = action_list[0]
-            rich.print(f"Actor: {action.actor}\nTimestamp: {utils.human_date_str(action.timestamp)}\nAction Name: {action.name}\nTask: {action.ref_task.name}")
+            rich.print(
+                f"Actor: {action.actor}\nTimestamp: {utils.human_date_str(action.timestamp)}\nAction Name: {action.name}\nTask: {action.ref_task.name}"
+            )
         else:
-            rich.print(f":x: [red]Multiple actions found with name '{action_ref}'. Please provide more specific criteria (timestamp).[/red]")
+            rich.print(
+                f":x: [red]Multiple actions found with name '{action_ref}'. Please provide more specific criteria (timestamp).[/red]"
+            )
             _print_action_list_table(action_list)
             raise typer.Exit(code=-10)
 
@@ -421,7 +353,6 @@ def edit_task(
     """Edits a task in the tracker"""
     original_task = app.get_task_by_name(task_name)
 
-
     if original_task is None:
         rich.print(f":x: [red]Task '{task_name}' not found[/red]")
         raise typer.Exit(code=GENERIC_FAIL_CODE)
@@ -455,16 +386,13 @@ def edit_task(
         changes["description"] = new_description
 
     new_task = app.edit_task(original_task, changes)
-    
 
     if new_task is not None:
         rich.print(
             f":heavy_check_mark: [green]Task '{task_name}' updated successfully[/green]\n{new_task}"
         )
-    else: 
-        rich.print(
-            f":cross_mark: [red]Could not update '{task_name}'[/red]\n"
-        )
+    else:
+        rich.print(f":cross_mark: [red]Could not update '{task_name}'[/red]\n")
         raise typer.Exit(code=GENERIC_FAIL_CODE)
 
 
@@ -475,11 +403,12 @@ def edit_task(
 def edit_action(
     task_name: Annotated[str, typer.Argument(help="name of the task of the action")],
     action_ref: Annotated[
-        Optional[str], typer.Argument(help="action timestamp or name to identify which action to edit")
+        Optional[str],
+        typer.Argument(
+            help="action timestamp or name to identify which action to edit"
+        ),
     ] = None,
-    new_actor: Annotated[
-        Optional[str], typer.Argument(help="new actor name")
-    ] = None,
+    new_actor: Annotated[Optional[str], typer.Argument(help="new actor name")] = None,
     new_timestamp: Annotated[
         Optional[str], typer.Argument(help="new timestamp for the action")
     ] = None,
@@ -497,12 +426,12 @@ def edit_action(
     if action_ref is None:
         rich.print(":x: [red]Must provide an action timestamp or name[/red]")
         raise typer.Exit(code=GENERIC_FAIL_CODE)
-    
+
     try:
         # Get the original action for interactive mode
         actions = app.get_actions_for_task_filtered(task_name)
         original_action = None
-        
+
         # Try to find by timestamp first
         try:
             timestamp = utils.parse_date(action_ref)
@@ -513,25 +442,35 @@ def edit_action(
                 if action.name == action_ref:
                     original_action = action
                     break
-        
+
         if original_action is None:
             rich.print(f":x: [red]Action not found[/red]")
             raise typer.Exit(code=GENERIC_FAIL_CODE)
-        
+
         if interactive:
             logger.info("interactively editing action")
             if new_actor is None:
-                new_actor = typer.prompt("New Actor", type=str, default=original_action.actor)
+                new_actor = typer.prompt(
+                    "New Actor", type=str, default=original_action.actor
+                )
             if new_timestamp is None:
-                new_timestamp = typer.prompt("New Timestamp", type=str, default=utils.human_date_str(original_action.timestamp))
+                new_timestamp = typer.prompt(
+                    "New Timestamp",
+                    type=str,
+                    default=utils.human_date_str(original_action.timestamp),
+                )
             if new_action_name is None:
-                new_action_name = typer.prompt("New Action Name", type=str, default=original_action.name)
+                new_action_name = typer.prompt(
+                    "New Action Name", type=str, default=original_action.name
+                )
             if new_task_name is None:
-                new_task_name = typer.prompt("New Task Name", type=str, default=original_action.ref_task.name)
-        
+                new_task_name = typer.prompt(
+                    "New Task Name", type=str, default=original_action.ref_task.name
+                )
+
         # Parse the new values
         parsed_timestamp = utils.parse_date(new_timestamp) if new_timestamp else None
-        
+
         # Edit the action
         updated_action = app.edit_action(
             task_name,
@@ -541,17 +480,19 @@ def edit_action(
             new_action_name=new_action_name,
             new_task_name=new_task_name,
         )
-        
+
         if updated_action is not None:
             rich.print(f":heavy_check_mark: [green]Action updated successfully[/green]")
-            rich.print(f"Actor: {updated_action.actor}\nTimestamp: {utils.human_date_str(updated_action.timestamp)}\nAction Name: {updated_action.name}\nTask: {updated_action.ref_task.name}")
+            rich.print(
+                f"Actor: {updated_action.actor}\nTimestamp: {utils.human_date_str(updated_action.timestamp)}\nAction Name: {updated_action.name}\nTask: {updated_action.ref_task.name}"
+            )
         else:
             rich.print(f":x: [red]Could not update action[/red]")
             raise typer.Exit(code=GENERIC_FAIL_CODE)
     except ValueError as e:
         rich.print(f":x: [red]{str(e)}[/red]")
         raise typer.Exit(code=GENERIC_FAIL_CODE)
-        
+
 
 ########################################
 # delete app
@@ -563,17 +504,28 @@ def delete_task(
     task_name: Annotated[str, typer.Argument(help="name of the task to delete")],
 ):
     """Deletes a task."""
-    result = app.delete_task(task_name)
+    try:
+        result = app.delete_task(task_name)
+    except Exception as e:
+        rich.print(f":x: [red]{str(e)}[/red]")
+        raise typer.Exit(code=GENERIC_FAIL_CODE)
+
     if result == TaskRecordResults.SUCCESS:
-        rich.print(f":heavy_check_mark: [green]Successfully deleted task '{task_name}'[/green]")
+        rich.print(
+            f":heavy_check_mark: [green]Successfully deleted task '{task_name}'[/green]"
+        )
     else:
-        rich.print(f":x: [red]Could not delete task '{task_name}'. It might not exist or have actions that depend on it.[/red]")
+        rich.print(
+            f":x: [red]Could not delete task '{task_name}'. It might not exist or have actions that depend on it.[/red]"
+        )
         raise typer.Exit(code=GENERIC_FAIL_CODE)
 
 
 @delete_app.command("action")
 def delete_action(
-    task_name: Annotated[str, typer.Argument(help="name of the task of the action to delete")],
+    task_name: Annotated[
+        str, typer.Argument(help="name of the task of the action to delete")
+    ],
     start_time: Annotated[
         Optional[str], typer.Option(help="start time of the actions to delete")
     ] = None,
@@ -586,7 +538,9 @@ def delete_action(
 ):
     """Deletes one or more actions."""
     if not start_time and not end_time and not action_name:
-        rich.print("No action to delete. Please provide a time range or an action name.")
+        rich.print(
+            "No action to delete. Please provide a time range or an action name."
+        )
         raise typer.Exit()
 
     start = utils.parse_date(start_time) if start_time else None
@@ -595,39 +549,43 @@ def delete_action(
     deleted_count = app.delete_action(task_name, start, end, action_name)
 
     if deleted_count > 0:
-        rich.print(f":heavy_check_mark: [green]Successfully deleted {deleted_count} action(s) for task '{task_name}'[/green]")
+        rich.print(
+            f":heavy_check_mark: [green]Successfully deleted {deleted_count} action(s) for task '{task_name}'[/green]"
+        )
     else:
-        rich.print(f":x: [red]No actions were deleted for task '{task_name}'. They might not exist or the provided criteria didn't match.[/red]")
-
+        rich.print(
+            f":x: [red]No actions were deleted for task '{task_name}'. They might not exist or the provided criteria didn't match.[/red]"
+        )
 
 
 ########################################
 # report app
 ########################################
 
+
 @report_app.command("overdue")
 def report_overdue(
     at: Annotated[
-        Optional[str], 
-        typer.Option("--at", help="check for overdues at the given timestamp")
-    ] = None
+        Optional[str],
+        typer.Option("--at", help="check for overdues at the given timestamp"),
+    ] = None,
 ):
     """Lists overdue tasks"""
     when = utils.parse_date(at) if at else None
     overdue_tasks = app.get_overdue_tasks(when)
     _print_task_list_table(overdue_tasks, title="Overdue Tasks")
 
+
 @report_app.command("next")
 def report_next(
     run: Annotated[Optional[str], typer.Argument()] = None,
     for_task: Annotated[
-        Optional[str], 
-        typer.Option("--for", help="get next run for a specific task")
+        Optional[str], typer.Option("--for", help="get next run for a specific task")
     ] = None,
     at: Annotated[
-        Optional[str], 
-        typer.Option("--at", help="check next runs at the given timestamp")
-    ] = None
+        Optional[str],
+        typer.Option("--at", help="check next runs at the given timestamp"),
+    ] = None,
 ):
     """Gets next runs for tasks"""
     target_task = for_task
@@ -635,16 +593,16 @@ def report_next(
         target_task = run
     when = utils.parse_date(at) if at else None
     next_runs = app.get_next_runs(target_task, when)
-    
+
     title = "Next Scheduled Task" if target_task else "Next Scheduled Tasks"
-    table = rich.table.Table(title=title)
+    table = Table(title=title)
     table.add_column("Task", justify="left", no_wrap=True)
     table.add_column("Next Run", justify="right", style="green")
-    
+
     for task, next_run in next_runs:
         table.add_row(task.name, utils.human_date_str(next_run))
-    
-    console = rich.console.Console()
+
+    console = Console()
     console.print(table)
 
 
@@ -655,17 +613,18 @@ def show_dashboard() -> None:
     rich.print("[bold]next expected tasks[/bold]")
     report_next()
 
+
 @report_app.command("tasks")
 def report_tasks(
     run: Annotated[Optional[str], typer.Argument()] = None,
     at: Annotated[
-        Optional[str], 
-        typer.Option("--at", help="list tasks for a specific time period")
+        Optional[str],
+        typer.Option("--at", help="list tasks for a specific time period"),
     ] = None,
     between: Annotated[
-        Optional[tuple[str, str]], 
-        typer.Option("--between", help="list tasks between two timestamps")
-    ] = None
+        Optional[tuple[str, str]],
+        typer.Option("--between", help="list tasks between two timestamps"),
+    ] = None,
 ):
     """Lists tasks based on time criteria"""
     if at:
@@ -681,21 +640,21 @@ def report_tasks(
         tasks = app.get_all_tasks()
         _print_task_list_table(tasks)
 
+
 @report_app.command("actions")
 def report_actions(
     run: Annotated[Optional[str], typer.Argument()] = None,
     at: Annotated[
-        Optional[str], 
-        typer.Option("--at", help="list actions for a specific time period")
+        Optional[str],
+        typer.Option("--at", help="list actions for a specific time period"),
     ] = None,
     between: Annotated[
-        Optional[tuple[str, str]], 
-        typer.Option("--between", help="list actions between two timestamps")
+        Optional[tuple[str, str]],
+        typer.Option("--between", help="list actions between two timestamps"),
     ] = None,
     for_task: Annotated[
-        Optional[str], 
-        typer.Option("--for", help="filter actions for a specific task")
-    ] = None
+        Optional[str], typer.Option("--for", help="filter actions for a specific task")
+    ] = None,
 ):
     """Lists actions based on criteria"""
     if at:

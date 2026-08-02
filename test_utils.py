@@ -55,9 +55,7 @@ def test__round_datetime(
         ),
         (
             "1 month",
-            _round_datetime(
-                datetime.now() + relativedelta(months=1)
-            ).astimezone(),
+            _round_datetime(datetime.now() + relativedelta(months=1)).astimezone(),
         ),
     ],
 )
@@ -189,6 +187,7 @@ def test_human_date_str(delta, expected):
 
 def test_parse_partial_timestamp():
     from utils import parse_partial_timestamp, UTC
+
     # Year
     start, end = parse_partial_timestamp("2024")
     assert start == datetime(2024, 1, 1, 0, 0, 0, tzinfo=UTC)

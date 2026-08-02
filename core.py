@@ -28,13 +28,9 @@ from dataclasses import asdict, dataclass, is_dataclass
 from datetime import UTC, datetime, timedelta, timezone
 from enum import Enum
 from pathlib import Path
-from typing import Any, Optional, Sequence
+from typing import Any, Optional, Sequence, Iterable
 
 import utils
-
-DEFAULT_SAVE_DIR = "./data"
-DEFAULT_ACTION_LIST_FILE = "action_list.json"
-DEFAULT_TASK_LIST_FILE = "task_list.json"
 
 logger = logging.getLogger(__name__)
 
@@ -57,7 +53,7 @@ class Task:
 
     def copy(self):
         return deepcopy(self)
-    
+
     def replace(self, changes: dict) -> Task:
         return dataclasses.replace(self, **changes)
 
@@ -169,9 +165,10 @@ class Action:
 
     def copy(self):
         return deepcopy(self)
-    
+
     def replace(self, changes: dict) -> Action:
         return dataclasses.replace(self, **changes)
+
 
 class TaskWithSameNameError(KeyError):
     pass
@@ -202,19 +199,21 @@ class TaskLister(UserList):
     def add(self, new_task: Task) -> None:
         self.append(new_task)
 
-    def extend(self, new_tasks: Sequence[Task]) -> None:
-        for t in new_tasks:
+    def extend(self, other: Iterable[Task]) -> None:
+        # conform to UserList.extend signature (other)
+        for t in other:
             self.append(t)
 
-    def append(self, new_task: Task) -> None:
-        if self._check_task_name_available(new_task.name):
-            super().append(new_task)
+    def append(self, item: Task) -> None:
+        # conform to UserList.append signature (item)
+        if self._check_task_name_available(item.name):
+            super().append(item)
         else:
-            error_msg = f"Error adding a task to the list: cannot have two tasks with the same name. '{new_task.name}' already exist."
+            error_msg = f"Error adding a task to the list: cannot have two tasks with the same name. '{item.name}' already exist."
             logger.debug(error_msg)
             raise (TaskWithSameNameError(error_msg))
 
-    def get_task_by_name(self, target_name: str) -> Task | None:
+    def get_task_by_name(self, target_name: Optional[str]) -> Task | None:
         for t in self.data:
             if t.name == target_name:
                 return t
@@ -307,141 +306,3 @@ class ActionLister(UserList):
                 return False
 
         return True
-
-
-class MtnTrackerJSONEncoder(json.JSONEncoder):
-    """
-    Converts a python object, where datetime and timedelta objects are converted
-    into objects that can be decoded using the DateTimeAwareJSONDecoder.
-    """
-
-    def default(self, obj):
-        # TODO add an check for tasks and one for actions
-        if isinstance(obj, datetime):
-            return {
-                "__type__": "datetime",
-                "year": obj.year,
-                "month": obj.month,
-                "day": obj.day,
-                "hour": obj.hour,
-                "minute": obj.minute,
-                "second": obj.second,
-                "microsecond": obj.microsecond,
-                "utcoffset": obj.utcoffset(),
-            }
-
-        elif isinstance(obj, timedelta):
-            return {
-                "__type__": "timedelta",
-                "days": obj.days,
-                "seconds": obj.seconds,
-                "microseconds": obj.microseconds,
-            }
-
-        elif is_dataclass(obj):
-            return {"__type__": obj.__class__.__name__} | asdict(obj)
-
-        else:
-            return json.JSONEncoder.default(self, obj)
-
-
-class MtnTrackerJSONDecoder(json.JSONDecoder):
-    """
-    Converts a json string, where datetime and timedelta objects were converted
-    into objects using the DateTimeAwareJSONEncoder, back into a python object.
-    """
-
-    def __init__(self):
-        json.JSONDecoder.__init__(self, object_hook=self.dict_to_object)
-
-    def dict_to_object(self, d):
-        if "__type__" not in d:
-            return d
-
-        type = d.pop("__type__")
-        if type == "datetime":
-            return datetime(
-                year=d["year"],
-                month=d["month"],
-                day=d["day"],
-                hour=d["hour"],
-                minute=d["minute"],
-                second=d["second"],
-                microsecond=d["microsecond"],
-                tzinfo=timezone(d["utcoffset"]),
-            )
-        elif type == "timedelta":
-            return timedelta(**d)
-        elif type == "Task":
-            return Task(**d)
-        elif type == "Action":
-            # Convert ref_task dictionary back to a Task object
-            if "ref_task" in d and isinstance(d["ref_task"], dict):
-                d["ref_task"] = Task(**d["ref_task"])
-            return Action(**d)
-        else:
-            # Oops... better put this back together.
-            d["__type__"] = type
-            return d
-
-
-class Persister:
-    dirname: str = DEFAULT_SAVE_DIR
-    filename: str
-    save_path: Path
-
-    def __init__(self, persisted_object):
-        self.obj = persisted_object
-
-    def save(self):
-        logger.info(f"writing to {self.save_path}")
-        with open(self.save_path, "w", encoding="utf8") as f:
-            json.dump(self.obj.data, f, cls=MtnTrackerJSONEncoder, indent=4)
-        return self.obj
-
-    def load(self):
-        if not self.save_path.exists():
-            self.save()
-
-        with open(self.save_path, "r", encoding="utf8") as f:
-            loaded_data = json.load(f, cls=MtnTrackerJSONDecoder)
-
-        self.obj.data = loaded_data
-
-        return self.obj
-
-    def _remove_file(self):
-        import os
-
-        try:
-            os.remove(self.save_path)
-        except FileNotFoundError:
-            logger.warning(
-                f"Tried removing file {self.save_path}, but it didn't exist. Will continue."
-            )
-
-
-class ActionListPersister(Persister):
-    def __init__(self, action_list, dirname=None, filename=None):
-        super().__init__(action_list)
-        if dirname is not None:
-            self.dirname = dirname
-        if filename is None:
-            filename = DEFAULT_ACTION_LIST_FILE
-        self.filename = filename
-        self.save_path = Path(self.dirname).joinpath(self.filename)
-
-
-class TaskListPersister(Persister):
-    def __init__(self, task_list, dirname=None, filename=None):
-        super().__init__(task_list)
-        if dirname is not None:
-            self.dirname = dirname
-        if filename is None:
-            filename = DEFAULT_TASK_LIST_FILE
-        self.filename = filename
-        self.save_path = Path(self.dirname).joinpath(self.filename)
-
-
-if __name__ == "__main__":
-    pass
