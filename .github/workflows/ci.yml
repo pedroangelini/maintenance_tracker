@@ -32,7 +32,7 @@ jobs:
           pip install uv
 
       - name: Install dependencies from lockfile
-        run: uv install --locked
+        run: uv sync
 
       - name: Run tests (pytest)
         run: |
