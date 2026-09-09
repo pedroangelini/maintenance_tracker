@@ -47,20 +47,17 @@ def test__round_datetime(
 
 
 @pytest.mark.parametrize(
-    "input,expected",
+    "input,delta",
     [
-        (
-            "today",
-            _round_datetime(datetime.now().astimezone()),
-        ),
-        (
-            "1 month",
-            _round_datetime(datetime.now() + relativedelta(months=1)).astimezone(),
-        ),
+        ("today", relativedelta()),
+        ("1 month", relativedelta(months=1)),
     ],
 )
-def test_parse_date(input: str, expected: datetime):
-    assert parse_date(input) == expected
+def test_parse_date(input: str, delta: relativedelta):
+    with freeze_time(datetime(2025, 3, 23, 19, 14, 0)):
+        now = datetime.now().astimezone()
+        expected = _round_datetime(now + delta)
+        assert parse_date(input) == expected
 
 
 @pytest.mark.parametrize(
