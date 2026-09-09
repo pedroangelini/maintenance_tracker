@@ -188,16 +188,18 @@ def test_edit_task_with_name_change(task1):
     assert new_tracker.action_list[0].ref_task.name == "a new name"
 
 
-def test_edit_task_fails_without_name_change(task1):
-    from errors import DuplicateTaskError
-
+def test_edit_task_without_name_change(task1):
     app.register_task(task1)
     task_from_tracker = app.get_task_by_name(task1.name)
     assert task_from_tracker is not None
 
     changes = {"description": "new description"}
-    with pytest.raises(DuplicateTaskError):
-        app.edit_task(task_from_tracker, changes)
+    new_task = app.edit_task(task_from_tracker, changes)
+
+    assert new_task is not None
+    assert new_task.name == task1.name
+    assert new_task.description == "new description"
+    assert app.get_task_by_name(task1.name) == new_task
 
 
 def test_get_actions_for_task_filtered(task1, action1_t1, action2_t1, action3_t1):
