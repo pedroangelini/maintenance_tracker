@@ -113,7 +113,7 @@ def test_manual_interactive_task_creation_and_edit(tmp_path):
     assert "New Name" in edit.stdout
 
     persisted = run_cli(tmp_path, "get", "task", "Interactive task")
-    assert_cli_success(persisted, "Interactive task", "Edited interactively", "2 days", "2024-02-01")
+    assert_cli_success(persisted, "Interactive task", "Edited interactively", "2 days", "Feb 01 2024")
 
 
 # Actions must be recordable, reportable, listable, and deletable by name.

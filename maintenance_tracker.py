@@ -390,12 +390,18 @@ class MaintenanceTracker:
         new_task = old_task.replace(changes)
         logger.debug(f"with new task: {new_task.name} (id: {id(new_task)})")
 
-        # register the new task
-        self.register_task(new_task)
-
         # move actions to the new task
         actions = self.get_actions_for_task(old_task)
         logger.debug(f"updating {len(actions)} actions to point to new task")
+
+        if new_task.name == old_task.name:
+            # A same-name replacement must remove the old record before registering
+            # the new one, otherwise the task list rejects it as a duplicate.
+            self.task_repo.remove(old_task)
+
+        # register the new task
+        self.register_task(new_task)
+
         for action in actions:
             new_action = action.replace({"ref_task": new_task})
             self.record_run(new_action)
@@ -404,13 +410,14 @@ class MaintenanceTracker:
 
         logger.debug("deleting old task")
         # delete_task will raise DanglingActionsError if it cannot be deleted
-        try:
-            self.delete_task(old_task)
-        except DanglingActionsError:
-            logger.fatal(
-                "error editing (replacing) task - could not move the old actions to the new task"
-            )
-            raise
+        if new_task.name != old_task.name:
+            try:
+                self.delete_task(old_task)
+            except DanglingActionsError:
+                logger.fatal(
+                    "error editing (replacing) task - could not move the old actions to the new task"
+                )
+                raise
 
         return new_task
 
