@@ -5,6 +5,8 @@ does not affect your normal tracker. Run commands from the project root. If
 the `mtnt` command is not installed, use `uv run python main.py` in place of
 `mtnt` below.
 
+> Note - these tests are automated as part of the test_integration.py module
+
 ```sh
 export MTNT_TEST_DIR="$(mktemp -d)"
 alias mtnt='uv run python main.py --config-dir "$MTNT_TEST_DIR"'
@@ -42,8 +44,8 @@ shown as successfully updated.
 ## Record, list, query, and delete actions
 
 ```sh
-mtnt record run "Water plants" "Alex" --timestamp "2024-01-08 09:15" --action-name "weekly watering"
-mtnt add action "Water plants" "Sam" --timestamp "2024-01-15 09:00" --action-name "second watering"
+mtnt record run "Water plants" "Alex" --timestamp "2024-01-08 09:15" "weekly watering"
+mtnt add action "Water plants" "Sam" --timestamp "2024-01-15 09:00" "second watering"
 mtnt list actions
 mtnt list actions "Water plants"
 mtnt report actions --at 2024-01 --for "Water plants"
@@ -60,7 +62,7 @@ Also delete by a time range, then confirm the filtered list is empty:
 ```sh
 mtnt delete action "Water plants" --start-time "2024-01-15 00:00" --end-time "2024-01-15 23:59"
 mtnt list actions "Water plants"
-mtnt record run "Water plants" "Sam" --timestamp "2024-01-15 09:00" --action-name "second watering"
+mtnt record run "Water plants" "Sam" --timestamp "2024-01-15 09:00" "second watering"
 ```
 
 ## Edit, reporting, and validation
@@ -71,7 +73,6 @@ mtnt get task "Water houseplants"
 mtnt report next --for "Water houseplants" --at "2024-01-16"
 mtnt report tasks --between "2024-01-01" "2024-01-31"
 mtnt report overdue --at "2024-02-01"
-mtnt delete task "Water houseplants"
 mtnt delete action "Water houseplants" --action-name "second watering"
 mtnt delete task "Water houseplants"
 ```
@@ -89,9 +90,11 @@ mtnt record run "does not exist"
 mtnt delete action "Replace filter"
 ```
 
-Expected: each command explains the failure without corrupting previously
-saved tasks or actions. Finally, rerun `list tasks` and `list actions` to
-confirm persistence and the expected final state.
+Expected: the empty-name and missing-task commands fail with an explanation
+without corrupting previously saved tasks or actions. The no-criteria action
+deletion explains that a time range or action name is required, but currently
+exits successfully. Finally, rerun `list tasks` and `list actions` to confirm
+persistence and the expected final state.
 
 ## Test coverage
 

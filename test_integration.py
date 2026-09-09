@@ -1,4 +1,6 @@
 import pytest
+import subprocess
+from pathlib import Path
 from maintenance_tracker import MaintenanceTracker, Action, Task, ActionRecordResults
 from repository import (
     FileTaskRepository,
@@ -11,6 +13,271 @@ from datetime import datetime, UTC, timedelta
 import json
 
 import pytest
+
+
+PROJECT_ROOT = Path(__file__).parent
+
+
+def run_cli(config_dir: Path, *args: str, input_text: str | None = None):
+    return subprocess.run(
+        ["uv", "run", "python", "main.py", "--config-dir", str(config_dir), *args],
+        cwd=PROJECT_ROOT,
+        input=input_text,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+
+
+def assert_cli_success(result, *expected_output: str):
+    assert result.returncode == 0, result.stderr or result.stdout
+    assert result.stderr == ""
+    for expected in expected_output:
+        assert expected in result.stdout
+
+
+def assert_cli_failure(result, expected_output: str):
+    assert result.returncode != 0
+    assert expected_output in result.stdout or expected_output in result.stderr
+
+
+# The top-level help must expose every command group documented for users.
+def test_manual_help_lists_commands(tmp_path):
+    result = run_cli(tmp_path, "--help")
+
+    assert_cli_success(result, "add", "record", "list", "get", "edit", "delete", "report")
+
+
+# Task creation, lookup, and overdue listing must persist across CLI processes.
+def test_manual_task_creation_lookup_and_overdue_listing(tmp_path):
+    assert_cli_success(
+        run_cli(
+            tmp_path,
+            "add",
+            "task",
+            "Water plants",
+            "2024-01-01 09:00",
+            "7 days",
+            "Water indoor plants",
+        ),
+        "Successfully created task",
+        "Water plants",
+    )
+    assert_cli_success(
+        run_cli(
+            tmp_path,
+            "add",
+            "task",
+            "Replace filter",
+            "2030-01-01 09:00",
+            "0",
+            "One-time task",
+        ),
+        "Successfully created task",
+        "Replace filter",
+    )
+
+    task_list = run_cli(tmp_path, "list", "tasks")
+    assert_cli_success(task_list, "Water plants", "Replace filter", "One-time task")
+    assert "7 days" in task_list.stdout
+    assert "repeating" not in task_list.stdout.lower() or "Replace filter" in task_list.stdout
+
+    assert_cli_success(run_cli(tmp_path, "get", "task", "Water plants"), "Water plants")
+    assert_cli_success(run_cli(tmp_path, "get", "tasks", "--name", "Water"), "Water plants")
+    assert_cli_success(run_cli(tmp_path, "list", "tasks", "--overdue"), "Water plants")
+
+
+# Interactive editing should change every field except the existing task name.
+def test_manual_interactive_task_creation_and_edit(tmp_path):
+    create = run_cli(
+        tmp_path,
+        "add",
+        "task",
+        "-i",
+        input_text="Interactive task\nnow\n1 day\nCreated interactively\n",
+    )
+    assert_cli_success(create, "Task Name", "Successfully created task", "Interactive task")
+
+    edit = run_cli(
+        tmp_path,
+        "edit",
+        "task",
+        "Interactive task",
+        "-i",
+        input_text="2024-02-01 09:00\n2 days\nEdited interactively\nInteractive task\n",
+    )
+    assert_cli_success(edit, "updated successfully", "Interactive task", "Edited interactively")
+    assert "New Start Time" in edit.stdout
+    assert "New Periodicity" in edit.stdout
+    assert "New Description" in edit.stdout
+    assert "New Name" in edit.stdout
+
+    persisted = run_cli(tmp_path, "get", "task", "Interactive task")
+    assert_cli_success(persisted, "Interactive task", "Edited interactively", "2 days", "2024-02-01")
+
+
+# Actions must be recordable, reportable, listable, and deletable by name.
+def test_manual_action_record_report_and_name_delete(tmp_path):
+    assert_cli_success(
+        run_cli(tmp_path, "add", "task", "Water plants", "2024-01-01 09:00", "7 days"),
+        "Successfully created task",
+    )
+    assert_cli_success(
+        run_cli(
+            tmp_path,
+            "record",
+            "run",
+            "Water plants",
+            "Alex",
+            "--timestamp",
+            "2024-01-08 09:15",
+            "weekly watering",
+        ),
+        "Successfully recorded action",
+    )
+    assert_cli_success(
+        run_cli(
+            tmp_path,
+            "add",
+            "action",
+            "Water plants",
+            "Sam",
+            "--timestamp",
+            "2024-01-15 09:00",
+            "second watering",
+        ),
+        "Successfully recorded action",
+    )
+
+    all_actions = run_cli(tmp_path, "list", "actions")
+    assert_cli_success(all_actions, "weekly watering", "second watering", "Alex", "Sam")
+    assert_cli_success(run_cli(tmp_path, "list", "actions", "Water plants"), "weekly watering", "second watering")
+    assert_cli_success(
+        run_cli(tmp_path, "report", "actions", "--at", "2024-01", "--for", "Water plants"),
+        "weekly watering",
+        "second watering",
+    )
+
+    assert_cli_success(
+        run_cli(tmp_path, "delete", "action", "Water plants", "--action-name", "weekly watering"),
+        "deleted",
+    )
+    remaining = run_cli(tmp_path, "list", "actions", "Water plants")
+    assert_cli_success(remaining, "second watering")
+    assert "weekly watering" not in remaining.stdout
+
+
+# Time-range deletion must remove only the matching action and allow re-recording.
+def test_manual_action_time_range_delete_and_rerecord(tmp_path):
+    assert_cli_success(run_cli(tmp_path, "add", "task", "Water plants"), "Successfully created task")
+    assert_cli_success(
+        run_cli(
+            tmp_path,
+            "record",
+            "run",
+            "Water plants",
+            "Sam",
+            "--timestamp",
+            "2024-01-15 09:00",
+            "second watering",
+        ),
+        "Successfully recorded action",
+    )
+    assert_cli_success(
+        run_cli(
+            tmp_path,
+            "delete",
+            "action",
+            "Water plants",
+            "--start-time",
+            "2024-01-15 00:00",
+            "--end-time",
+            "2024-01-15 23:59",
+        ),
+        "deleted",
+    )
+    empty = run_cli(tmp_path, "list", "actions", "Water plants")
+    assert_cli_success(empty, "Action List")
+    assert "second watering" not in empty.stdout
+    assert_cli_success(
+        run_cli(
+            tmp_path,
+            "record",
+            "run",
+            "Water plants",
+            "Sam",
+            "--timestamp",
+            "2024-01-15 09:00",
+            "second watering",
+        ),
+        "Successfully recorded action",
+    )
+
+
+# Renaming preserves action relationships, while dependent deletion is blocked.
+def test_manual_rename_reports_and_dependency_delete(tmp_path):
+    assert_cli_success(
+        run_cli(tmp_path, "add", "task", "Water plants", "2024-01-01 09:00", "7 days"),
+        "Successfully created task",
+    )
+    assert_cli_success(
+        run_cli(
+            tmp_path,
+            "record",
+            "run",
+            "Water plants",
+            "Sam",
+            "--timestamp",
+            "2024-01-15 09:00",
+            "second watering",
+        ),
+        "Successfully recorded action",
+    )
+    assert_cli_success(
+        run_cli(tmp_path, "edit", "task", "Water plants", "--rename", "Water houseplants"),
+        "updated successfully",
+    )
+    assert_cli_success(run_cli(tmp_path, "get", "task", "Water houseplants"), "Water houseplants")
+    assert_cli_success(
+        run_cli(tmp_path, "report", "next", "--for", "Water houseplants", "--at", "2024-01-16"),
+        "Water houseplants",
+    )
+    assert_cli_success(
+        run_cli(tmp_path, "report", "tasks", "--between", "2024-01-01", "2024-01-31"),
+        "Water houseplants",
+    )
+    assert_cli_success(
+        run_cli(tmp_path, "report", "overdue", "--at", "2024-02-01"),
+        "Water houseplants",
+    )
+
+    blocked = run_cli(tmp_path, "delete", "task", "Water houseplants")
+    assert_cli_failure(blocked, "action")
+    assert_cli_success(
+        run_cli(tmp_path, "delete", "action", "Water houseplants", "--action-name", "second watering"),
+        "deleted",
+    )
+    assert_cli_success(run_cli(tmp_path, "delete", "task", "Water houseplants"), "deleted")
+    final_tasks = run_cli(tmp_path, "list", "tasks")
+    final_actions = run_cli(tmp_path, "list", "actions")
+    assert_cli_success(final_tasks, "Task List")
+    assert_cli_success(final_actions, "Action List")
+    assert "Water houseplants" not in final_tasks.stdout
+
+
+# Invalid commands must explain failures without corrupting saved data.
+def test_manual_errors_and_final_persistence(tmp_path):
+    assert_cli_success(run_cli(tmp_path, "add", "task", "Replace filter", "2030-01-01 09:00", "0"), "created")
+    assert_cli_failure(run_cli(tmp_path, "add", "task", "", "now", "1 day"), "something went wrong")
+    assert_cli_failure(run_cli(tmp_path, "record", "run", "does not exist"), "not found")
+
+    no_criteria = run_cli(tmp_path, "delete", "action", "Replace filter")
+    assert_cli_success(no_criteria, "No action to delete")
+
+    assert_cli_success(run_cli(tmp_path, "list", "tasks"), "Replace filter")
+    final_actions = run_cli(tmp_path, "list", "actions")
+    assert_cli_success(final_actions, "Action List")
+    assert "second watering" not in final_actions.stdout
 
 
 @pytest.fixture(scope="function")
@@ -40,6 +307,7 @@ def action2_t1(task1: Task):
     )
 
 
+# Persisted tasks and actions should reload into a new tracker instance.
 def test_load_via_persister(tmp_path):
     # prepare task and action lists and save them using repository persisters
     t1 = Task(name="t_loaded")
@@ -64,6 +332,7 @@ def test_load_via_persister(tmp_path):
     assert any(a.name == "act" for a in mt.action_list)
 
 
+# An end-only time filter should return actions up to the specified cutoff.
 def test_get_actions_for_task_with_end_only(task1):
     mt = MaintenanceTracker()
     mt.register_task(task1)
@@ -84,6 +353,7 @@ def test_get_actions_for_task_with_end_only(task1):
     assert actions[0].name == "old"
 
 
+# Editing an action should support changing its timestamp and referenced task.
 def test_edit_action_change_timestamp_and_task(task1):
     mt = MaintenanceTracker()
     mt.register_task(task1)
@@ -105,6 +375,7 @@ def test_edit_action_change_timestamp_and_task(task1):
     assert edited2.ref_task.name == "other"
 
 
+# A failed action replacement should report no edited action to the caller.
 def test_edit_action_failure_branch(monkeypatch, task1):
     mt = MaintenanceTracker()
     mt.register_task(task1)
